@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Transaction;
+use App\Models\Classroom;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class ManajerController extends Controller
 {
@@ -99,16 +102,28 @@ class ManajerController extends Controller
      */
     public function registerStaff(Request $request)
     {
-        $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:6'],
             'role' => ['required', 'string', 'in:operator,walikelas'],
-            'class' => ['required_if:role,walikelas', 'nullable', 'string', 'max:50'],
-        ], [
+        ];
+
+        if ($request->role === 'walikelas') {
+            if ($request->has('classroom_ids')) {
+                $rules['classroom_ids'] = ['required', 'array'];
+                $rules['classroom_ids.*'] = ['exists:classrooms,id'];
+            } elseif ($request->has('class')) {
+                $rules['class'] = ['required', 'string', 'max:50'];
+            } else {
+                $rules['classroom_ids'] = ['required', 'array'];
+            }
+        }
+
+        $request->validate($rules, [
             'email.unique' => 'Email ini sudah terdaftar.',
             'password.min' => 'Password minimal 6 karakter.',
-            'class.required_if' => 'Kolom Kelas wajib diisi untuk peran Wali Kelas.'
+            'classroom_ids.required' => 'Kolom Kelas wajib dipilih untuk peran Wali Kelas.'
         ]);
 
         $user = User::create([
@@ -116,7 +131,6 @@ class ManajerController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
-            'class' => $request->role === 'walikelas' ? $request->class : null,
             'status' => 'approved', // Auto-approved
             'balance' => 0,
             'points' => 0,
@@ -124,6 +138,23 @@ class ManajerController extends Controller
 
         // Assign Spatie Role
         $user->assignRole($request->role);
+
+        // Assign Wali Kelas to classrooms
+        if ($request->role === 'walikelas') {
+            if ($request->has('classroom_ids')) {
+                $user->classrooms()->sync($request->classroom_ids);
+                
+                // Sync to class column for read-only listings
+                $classNames = Classroom::whereIn('id', $request->classroom_ids)->pluck('name')->toArray();
+                $user->class = implode(', ', $classNames);
+                $user->save();
+            } elseif ($request->has('class') && $request->class) {
+                $classroom = Classroom::firstOrCreate(['name' => trim($request->class)]);
+                $user->classrooms()->sync([$classroom->id]);
+                $user->class = $classroom->name;
+                $user->save();
+            }
+        }
 
         return redirect()->route('manajer.users')->with('success', 'Staf baru (' . ucfirst($request->role) . ') berhasil didaftarkan.');
     }
@@ -164,8 +195,9 @@ class ManajerController extends Controller
 
         // Fetch users sorted by created_at desc
         $users = $query->orderBy('created_at', 'desc')->get();
+        $classrooms = Classroom::orderBy('name')->get();
 
-        return view('manajer.users', compact('manager', 'users', 'roleFilter', 'statusFilter', 'searchQuery'));
+        return view('manajer.users', compact('manager', 'users', 'roleFilter', 'statusFilter', 'searchQuery', 'classrooms'));
     }
 
     /**
@@ -190,5 +222,205 @@ class ManajerController extends Controller
         $user->delete();
 
         return redirect()->route('manajer.users')->with('success', 'Akun ' . $user->name . ' (' . ucfirst($user->role) . ') berhasil dihapus.');
+    }
+
+    /**
+     * Update user details and roles/classroom assignments by manager.
+     */
+    public function updateUser(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $id],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'status' => ['required', 'string', 'in:approved,pending,rejected'],
+        ];
+
+        if ($request->filled('password')) {
+            $rules['password'] = ['required', 'string', 'min:6'];
+        }
+
+        if ($user->role === 'siswa') {
+            $rules['classroom_id'] = ['required', 'exists:classrooms,id'];
+        }
+
+        $request->validate($rules);
+
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->phone = $request->phone;
+        $user->status = $request->status;
+
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+        }
+
+        if ($user->role === 'siswa') {
+            $user->classroom_id = $request->classroom_id;
+        }
+
+        $user->save();
+
+        if ($user->role === 'walikelas') {
+            $classroomIds = $request->input('classroom_ids', []);
+            $user->classrooms()->sync($classroomIds);
+            
+            $classroomNames = Classroom::whereIn('id', $classroomIds)->pluck('name')->toArray();
+            $user->class = implode(', ', $classroomNames);
+            $user->save();
+        }
+
+        return redirect()->route('manajer.users')->with('success', 'Akun ' . $user->name . ' (' . ucfirst($user->role) . ') berhasil diperbarui.');
+    }
+
+    /**
+     * Display classrooms list, homeroom teacher info, and year rollover options.
+     */
+    public function indexClassrooms()
+    {
+        $manager = Auth::user();
+        $classrooms = Classroom::withCount('students')->orderBy('name')->get();
+        $currentSchoolYear = Setting::getValue('school_year', '2025/2026');
+        
+        return view('manajer.classrooms', compact('manager', 'classrooms', 'currentSchoolYear'));
+    }
+
+    /**
+     * Store new classroom.
+     */
+    public function storeClassroom(Request $request)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:50', 'unique:classrooms,name'],
+        ], [
+            'name.required' => 'Nama kelas wajib diisi.',
+            'name.unique' => 'Kelas dengan nama ini sudah terdaftar.',
+        ]);
+
+        Classroom::create([
+            'name' => trim($request->name),
+        ]);
+
+        return redirect()->route('manajer.classrooms')->with('success', 'Kelas baru berhasil ditambahkan.');
+    }
+
+    /**
+     * Destroy classroom.
+     */
+    public function destroyClassroom($id)
+    {
+        $classroom = Classroom::findOrFail($id);
+        
+        // Prevent deleting if it has active students
+        if ($classroom->students()->count() > 0) {
+            return redirect()->route('manajer.classrooms')->with('error', 'Kelas tidak dapat dihapus karena masih memiliki nasabah (siswa) aktif.');
+        }
+
+        $classroom->delete();
+
+        return redirect()->route('manajer.classrooms')->with('success', 'Kelas berhasil dihapus.');
+    }
+
+    /**
+     * Handle Year-End Rollover (Tahun Ajaran Baru)
+     */
+    public function rollOverSchoolYear(Request $request)
+    {
+        $currentYear = Setting::getValue('school_year', '2025/2026');
+        
+        // Parse and increment school year (e.g. 2025/2026 -> 2026/2027)
+        if (preg_match('/^(\d{4})\/(\d{4})$/', $currentYear, $matches)) {
+            $nextYearStart = intval($matches[1]) + 1;
+            $nextYearEnd = intval($matches[2]) + 1;
+            $newSchoolYear = $nextYearStart . '/' . $nextYearEnd;
+        } else {
+            $newSchoolYear = '2026/2027'; // Fallback
+        }
+
+        DB::beginTransaction();
+        try {
+            // Save new school year
+            Setting::setValue('school_year', $newSchoolYear);
+
+            // Fetch all student users
+            $students = User::where('role', 'siswa')->get();
+
+            foreach ($students as $student) {
+                $currentClass = $student->class;
+                $nextClass = $this->getNextClass($currentClass);
+
+                if ($nextClass === 'Lulus') {
+                    $student->class = 'Lulus';
+                    $student->classroom_id = null;
+                } else {
+                    // Find or create classroom with the new name
+                    $classroom = Classroom::firstOrCreate(['name' => $nextClass]);
+                    $student->classroom_id = $classroom->id;
+                    $student->class = $nextClass;
+                }
+                
+                $student->save();
+            }
+
+            DB::commit();
+            return redirect()->route('manajer.classrooms')->with('success', 'Berhasil memulai Tahun Pelajaran Baru ' . $newSchoolYear . '! Seluruh tingkat kelas siswa telah dinaikkan.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('manajer.classrooms')->with('error', 'Terjadi kesalahan saat roll-over: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update School Year manually.
+     */
+    public function updateSchoolYear(Request $request)
+    {
+        $request->validate([
+            'school_year' => ['required', 'string', 'max:20'],
+        ], [
+            'school_year.required' => 'Tahun pelajaran wajib diisi.',
+            'school_year.max' => 'Tahun pelajaran maksimal 20 karakter.',
+        ]);
+
+        Setting::setValue('school_year', trim($request->school_year));
+
+        return redirect()->route('manajer.classrooms')->with('success', 'Tahun pelajaran berhasil diubah secara manual menjadi ' . trim($request->school_year));
+    }
+
+    /**
+     * Helper to calculate next class level.
+     */
+    private function getNextClass($currentClass)
+    {
+        $currentClass = trim($currentClass);
+        if (empty($currentClass) || strtolower($currentClass) === 'lulus') {
+            return 'Lulus';
+        }
+        
+        // Match Roman numerals first (XII, XI, X)
+        if (preg_match('/^XII\b/i', $currentClass)) {
+            return 'Lulus';
+        }
+        if (preg_match('/^XI\b/i', $currentClass)) {
+            return preg_replace('/^XI\b/i', 'XII', $currentClass);
+        }
+        if (preg_match('/^X\b/i', $currentClass)) {
+            return preg_replace('/^X\b/i', 'XI', $currentClass);
+        }
+        
+        // Match numeric grades (12, 11, 10)
+        if (preg_match('/^12\b/', $currentClass)) {
+            return 'Lulus';
+        }
+        if (preg_match('/^11\b/', $currentClass)) {
+            return preg_replace('/^11\b/', '12', $currentClass);
+        }
+        if (preg_match('/^10\b/', $currentClass)) {
+            return preg_replace('/^10\b/', '11', $currentClass);
+        }
+        
+        return $currentClass; // Fallback unchanged if it doesn't match standard grade prefixes
     }
 }

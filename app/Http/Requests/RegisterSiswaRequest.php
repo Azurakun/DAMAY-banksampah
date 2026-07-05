@@ -26,7 +26,8 @@ class RegisterSiswaRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'nisn' => ['required', 'string', 'unique:users,nisn'],
-            'class' => ['required', 'string', 'max:50'],
+            'classroom_id' => ['required_without:class', 'nullable', 'exists:classrooms,id'],
+            'class' => ['required_without:classroom_id', 'nullable', 'string', 'max:50'],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['nullable', 'string', 'min:6']
         ];

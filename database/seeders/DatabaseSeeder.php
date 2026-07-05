@@ -4,9 +4,11 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\WasteCategory;
-use App\Models\Transaction;
+use App\Models\Classroom;
+use App\Models\Setting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,6 +17,27 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Ensure Roles exist
+        Role::firstOrCreate(['name' => 'siswa', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'operator', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'walikelas', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'manajer', 'guard_name' => 'web']);
+
+        // 0. Seed Settings
+        Setting::setValue('school_year', '2025/2026');
+
+        // 0.5. Seed Classrooms
+        $classNames = [
+            '10 RPL 1', '10 RPL 2', '10 RPL 3',
+            '11 RPL 1', '11 RPL 2', '11 RPL 3',
+            '12 RPL 1', '12 RPL 2', '12 RPL 3',
+            'XI TKJ 1'
+        ];
+        $classrooms = [];
+        foreach ($classNames as $name) {
+            $classrooms[$name] = Classroom::firstOrCreate(['name' => $name]);
+        }
+
         // 1. Seed Waste Categories
         $categories = [
             [
@@ -60,45 +83,17 @@ class DatabaseSeeder extends Seeder
         }
 
         // 2. Seed Users
-        // Students
-        $budi = User::create([
-            'name' => 'Budi Santoso',
-            'email' => 'budi@ecobank.com',
+        // Manager
+        $manajer = User::create([
+            'name' => 'Manajer EcoBank',
+            'email' => 'manajer@ecobank.com',
             'password' => Hash::make('password'),
-            'nisn' => '12345678',
-            'role' => 'siswa',
-            'class' => 'XII RPL 1',
-            'phone' => '081234567890',
-            'balance' => 54000,
-            'points' => 540,
-            'avatar' => null
+            'role' => 'manajer',
+            'status' => 'approved',
+            'balance' => 0,
+            'points' => 0
         ]);
-
-        $siti = User::create([
-            'name' => 'Siti Aminah',
-            'email' => 'siti@ecobank.com',
-            'password' => Hash::make('password'),
-            'nisn' => '87654321',
-            'role' => 'siswa',
-            'class' => 'XII RPL 1',
-            'phone' => '082134567891',
-            'balance' => 78000,
-            'points' => 780,
-            'avatar' => null
-        ]);
-
-        $rian = User::create([
-            'name' => 'Rian Hidayat',
-            'email' => 'rian@ecobank.com',
-            'password' => Hash::make('password'),
-            'nisn' => '11223344',
-            'role' => 'siswa',
-            'class' => 'XI TKJ 1',
-            'phone' => '083134567892',
-            'balance' => 12000,
-            'points' => 120,
-            'avatar' => null
-        ]);
+        $manajer->assignRole('manajer');
 
         // Operator
         $operator = User::create([
@@ -106,8 +101,11 @@ class DatabaseSeeder extends Seeder
             'email' => 'agus@ecobank.com',
             'password' => Hash::make('password'),
             'role' => 'operator',
-            'phone' => '085134567893'
+            'status' => 'approved',
+            'balance' => 0,
+            'points' => 0
         ]);
+        $operator->assignRole('operator');
 
         // Wali Kelas (Homeroom Teacher)
         $walikelas = User::create([
@@ -115,85 +113,56 @@ class DatabaseSeeder extends Seeder
             'email' => 'sri@ecobank.com',
             'password' => Hash::make('password'),
             'role' => 'walikelas',
-            'class' => 'XII RPL 1'
+            'class' => '12 RPL 1',
+            'status' => 'approved',
+            'balance' => 0,
+            'points' => 0
         ]);
+        $walikelas->assignRole('walikelas');
+        $walikelas->classrooms()->sync([$classrooms['12 RPL 1']->id]);
 
-        // Manager
-        $manajer = User::create([
-            'name' => 'Haji Mulyono',
-            'email' => 'mulyono@ecobank.com',
+        // Students (Siswa)
+        $budi = User::create([
+            'name' => 'Budi Santoso',
+            'email' => 'budi@ecobank.com',
             'password' => Hash::make('password'),
-            'role' => 'manajer'
-        ]);
-
-        // 3. Seed Sample Transactions
-        // Budi's transactions
-        Transaction::create([
-            'user_id' => $budi->id,
-            'operator_id' => $operator->id,
-            'type' => 'setor',
-            'waste_category_id' => $wasteCategories['plastik']->id,
-            'weight' => 10.00,
-            'amount' => 30000,
-            'points' => 300,
-            'status' => 'Berhasil',
-            'note' => 'Setoran botol plastik bersih',
-            'created_at' => now()->subDays(5)
-        ]);
-
-        Transaction::create([
-            'user_id' => $budi->id,
-            'operator_id' => $operator->id,
-            'type' => 'setor',
-            'waste_category_id' => $wasteCategories['kertas']->id,
-            'weight' => 12.00,
-            'amount' => 24000,
-            'points' => 240,
-            'status' => 'Berhasil',
-            'note' => 'Buku-buku bekas tidak terpakai',
-            'created_at' => now()->subDays(3)
-        ]);
-
-        // Siti's transactions
-        Transaction::create([
-            'user_id' => $siti->id,
-            'operator_id' => $operator->id,
-            'type' => 'setor',
-            'waste_category_id' => $wasteCategories['logam']->id,
-            'weight' => 13.00,
-            'amount' => 78000,
-            'points' => 780,
-            'status' => 'Berhasil',
-            'note' => 'Kaleng minuman bekas',
-            'created_at' => now()->subDays(2)
-        ]);
-
-        // Rian's transactions
-        Transaction::create([
-            'user_id' => $rian->id,
-            'operator_id' => $operator->id,
-            'type' => 'setor',
-            'waste_category_id' => $wasteCategories['kaca']->id,
-            'weight' => 8.00,
-            'amount' => 12000,
-            'points' => 120,
-            'status' => 'Berhasil',
-            'note' => 'Botol sirup kaca bekas',
-            'created_at' => now()->subDays(1)
-        ]);
-
-        // Pending withdrawal request for Budi
-        Transaction::create([
-            'user_id' => $budi->id,
-            'operator_id' => $operator->id,
-            'type' => 'tarik',
-            'waste_category_id' => null,
-            'weight' => null,
-            'amount' => 15000,
+            'nisn' => '12345678',
+            'role' => 'siswa',
+            'classroom_id' => $classrooms['12 RPL 1']->id,
+            'class' => '12 RPL 1',
+            'balance' => 0,
             'points' => 0,
-            'status' => 'Menunggu',
-            'note' => 'Pengajuan penarikan dana saku',
-            'created_at' => now()->subHours(4)
+            'status' => 'approved'
         ]);
+        $budi->assignRole('siswa');
+
+        $siti = User::create([
+            'name' => 'Siti Aminah',
+            'email' => 'siti@ecobank.com',
+            'password' => Hash::make('password'),
+            'nisn' => '87654321',
+            'role' => 'siswa',
+            'classroom_id' => $classrooms['12 RPL 1']->id,
+            'class' => '12 RPL 1',
+            'balance' => 0,
+            'points' => 0,
+            'status' => 'approved'
+        ]);
+        $siti->assignRole('siswa');
+
+        $rian = User::create([
+            'name' => 'Rian Hidayat',
+            'email' => 'rian@ecobank.com',
+            'password' => Hash::make('password'),
+            'nisn' => '11223344',
+            'role' => 'siswa',
+            'classroom_id' => $classrooms['XI TKJ 1']->id,
+            'class' => 'XI TKJ 1',
+            'balance' => 0,
+            'points' => 0,
+            'status' => 'approved'
+        ]);
+        $rian->assignRole('siswa');
     }
 }
+

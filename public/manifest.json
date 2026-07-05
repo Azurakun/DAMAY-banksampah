@@ -4,8 +4,8 @@
   "description": "Tabungan Bank Sampah PWA untuk SMKN 2 Indramayu",
   "start_url": "/login",
   "display": "standalone",
-  "background_color": "#fafaf5",
-  "theme_color": "#2E7D32",
+  "background_color": "#EEEEE3",
+  "theme_color": "#123526",
   "orientation": "portrait-primary",
   "icons": [
     {

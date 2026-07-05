@@ -19,6 +19,12 @@ Route::get('/register', [AuthController::class, 'showRegister'])->name('register
 Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Forgot Password Paths
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
+Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
+
 // 3. Authenticated Portal Groups
 Route::middleware(['auth'])->group(function () {
 
@@ -44,6 +50,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/export/excel', [OperatorController::class, 'exportExcel'])->name('operator.export.excel');
         Route::get('/export/pdf', [OperatorController::class, 'exportPdf'])->name('operator.export.pdf');
         Route::get('/profil', [OperatorController::class, 'profile'])->name('operator.profile');
+        Route::post('/profil', [OperatorController::class, 'updateProfile'])->name('operator.profile.update');
         
         // Student Registration (Manual Single & Bulk Import)
         Route::get('/register-siswa', [OperatorController::class, 'showRegisterForm'])->name('operator.students.register');
@@ -61,6 +68,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/pendaftar', [WaliKelasController::class, 'showPendaftar'])->name('walikelas.pendaftar');
         Route::post('/pendaftar/approve', [WaliKelasController::class, 'approveBulk'])->name('walikelas.pendaftar.approve');
         Route::post('/pendaftar/reject', [WaliKelasController::class, 'rejectBulk'])->name('walikelas.pendaftar.reject');
+        Route::get('/profil', [WaliKelasController::class, 'profile'])->name('walikelas.profile');
+        Route::post('/profil', [WaliKelasController::class, 'updateProfile'])->name('walikelas.profile.update');
+        Route::get('/siswa/{id}/detail', [WaliKelasController::class, 'studentDetail'])->name('walikelas.student.detail');
     });
 
     // === MANAJER PORTAL ===
@@ -70,7 +80,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/profil', [ManajerController::class, 'profile'])->name('manajer.profile');
         Route::post('/profil', [ManajerController::class, 'updateProfile'])->name('manajer.profile.update');
         Route::get('/users', [ManajerController::class, 'indexUsers'])->name('manajer.users');
+        Route::post('/users/{id}', [ManajerController::class, 'updateUser'])->name('manajer.users.update');
         Route::delete('/users/{id}', [ManajerController::class, 'destroyUser'])->name('manajer.users.destroy');
+        
+        // Classrooms Management
+        Route::get('/classrooms', [ManajerController::class, 'indexClassrooms'])->name('manajer.classrooms');
+        Route::post('/classrooms', [ManajerController::class, 'storeClassroom'])->name('manajer.classrooms.store');
+        Route::delete('/classrooms/{id}', [ManajerController::class, 'destroyClassroom'])->name('manajer.classrooms.destroy');
+        Route::post('/school-year/roll-over', [ManajerController::class, 'rollOverSchoolYear'])->name('manajer.schoolyear.rollover');
+        Route::post('/school-year/update', [ManajerController::class, 'updateSchoolYear'])->name('manajer.schoolyear.update');
     });
 
 });

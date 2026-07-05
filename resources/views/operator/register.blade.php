@@ -66,9 +66,16 @@
                         @error('nisn')<span class="form-error"><i class="bi bi-exclamation-circle"></i>{{ $message }}</span>@enderror
                     </div>
                     <div class="form-group">
-                        <label for="class" class="form-label">Kelas</label>
-                        <input type="text" id="class" name="class" class="form-control" placeholder="Contoh: XII RPL 1" value="{{ old('class') }}" required>
-                        @error('class')<span class="form-error"><i class="bi bi-exclamation-circle"></i>{{ $message }}</span>@enderror
+                        <label for="classroom_id" class="form-label">Kelas</label>
+                        <select id="classroom_id" name="classroom_id" class="form-control" required style="padding-top:0; padding-bottom:0;">
+                            <option value="" disabled selected>Pilih Kelas</option>
+                            @foreach($classrooms as $classroom)
+                                <option value="{{ $classroom->id }}" {{ old('classroom_id') == $classroom->id ? 'selected' : '' }}>
+                                    {{ $classroom->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('classroom_id')<span class="form-error"><i class="bi bi-exclamation-circle"></i>{{ $message }}</span>@enderror
                     </div>
                 </div>
 

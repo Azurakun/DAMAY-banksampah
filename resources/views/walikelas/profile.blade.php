@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Profil Manajer — EcoBank SMKN 2 Indramayu')
+@section('title', 'Profil Wali Kelas — EcoBank SMKN 2 Indramayu')
 
 @section('content')
 <div class="animate-fade-in" style="margin-bottom:var(--s-32);">
 
     {{-- Breadcrumb / Header --}}
     <div style="margin-bottom: var(--s-24);">
-        <a href="{{ route('manajer.dashboard') }}" class="back-link" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--primary); text-decoration:none; margin-bottom: 8px;">
+        <a href="{{ route('walikelas.dashboard') }}" class="back-link" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--primary); text-decoration:none; margin-bottom: 8px;">
             <i class="bi bi-arrow-left"></i> Kembali ke Dasbor
         </a>
         <h2 style="font-family:var(--font-display); font-size:26px; font-weight:800; color:var(--primary); margin-top:4px;">Pengaturan Profil</h2>
@@ -18,13 +18,13 @@
         {{-- Left Column: Identity Card --}}
         <div class="dashboard-column-left">
             <div class="card" style="padding:0; overflow:hidden; border-top: 5px solid var(--primary);">
-                <div class="profile-hero" style="background:linear-gradient(180deg, var(--accent-container) 0%, var(--surface) 100%); padding: var(--s-32) var(--s-24); text-align:center;">
-                    <div class="profile-avatar-circle" style="width:90px; height:90px; border-radius:50%; background:var(--accent); color:white; font-size:42px; display:flex; align-items:center; justify-content:center; margin:0 auto var(--s-16) auto; box-shadow: var(--shadow-sm);">
-                        {{ strtoupper(substr($manager->name, 0, 1)) }}
+                <div class="profile-hero" style="background:linear-gradient(180deg, var(--primary-container) 0%, var(--surface) 100%); padding: var(--s-32) var(--s-24); text-align:center;">
+                    <div class="profile-avatar-circle" style="width:90px; height:90px; border-radius:50%; background:var(--primary); color:white; font-size:42px; display:flex; align-items:center; justify-content:center; margin:0 auto var(--s-16) auto; box-shadow: var(--shadow-sm);">
+                        {{ strtoupper(substr($teacher->name, 0, 1)) }}
                     </div>
-                    <h3 style="font-family:var(--font-display); font-size:20px; font-weight:800; color:var(--on-surface);">{{ $manager->name }}</h3>
+                    <h3 style="font-family:var(--font-display); font-size:20px; font-weight:800; color:var(--on-surface);">{{ $teacher->name }}</h3>
                     <div style="margin-top:6px;">
-                        <span class="badge badge-accent" style="background:var(--accent); color:white; padding: 4px 12px; border-radius:var(--r-full); font-size:11px; font-weight:700;">Manajer Sekolah</span>
+                        <span class="badge badge-primary" style="background:var(--primary); color:white; padding: 4px 12px; border-radius:var(--r-full); font-size:11px; font-weight:700;">Wali Kelas</span>
                     </div>
                 </div>
 
@@ -34,11 +34,21 @@
                     <div class="info-grid" style="display:flex; flex-direction:column; gap:var(--s-12);">
                         <div style="display:flex; justify-content:space-between; font-size:13.5px; border-bottom:1px solid var(--outline-variant); padding-bottom:var(--s-8);">
                             <span style="color:var(--on-surface-variant); font-weight:600;"><i class="bi bi-envelope" style="margin-right:6px;"></i> Email</span>
-                            <strong style="color:var(--on-surface);">{{ $manager->email }}</strong>
+                            <strong style="color:var(--on-surface);">{{ $teacher->email }}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:13.5px; border-bottom:1px solid var(--outline-variant); padding-bottom:var(--s-8);">
+                            <span style="color:var(--on-surface-variant); font-weight:600;"><i class="bi bi-telephone" style="margin-right:6px;"></i> Telepon</span>
+                            <strong style="color:var(--on-surface);">{{ $teacher->phone ?? '—' }}</strong>
                         </div>
                         <div style="display:flex; justify-content:space-between; font-size:13.5px;">
-                            <span style="color:var(--on-surface-variant); font-weight:600;"><i class="bi bi-telephone" style="margin-right:6px;"></i> Telepon</span>
-                            <strong style="color:var(--on-surface);">{{ $manager->phone ?? '—' }}</strong>
+                            <span style="color:var(--on-surface-variant); font-weight:600;"><i class="bi bi-building" style="margin-right:6px;"></i> Kelas Asuhan</span>
+                            <strong style="color:var(--primary);">
+                                @if($teacher->classrooms->count() > 0)
+                                    {{ implode(', ', $teacher->classrooms->pluck('name')->toArray()) }}
+                                @else
+                                    {{ $teacher->class ?? 'Belum Ditentukan' }}
+                                @endif
+                            </strong>
                         </div>
                     </div>
                 </div>
@@ -52,12 +62,12 @@
                     <i class="bi bi-pencil-square" style="color:var(--accent);"></i> Ubah Detail Profil
                 </h3>
 
-                <form action="{{ route('manajer.profile.update') }}" method="POST">
+                <form action="{{ route('walikelas.profile.update') }}" method="POST">
                     @csrf
 
                     <div class="form-group">
                         <label for="name" class="form-label">Nama Lengkap</label>
-                        <input type="text" id="name" name="name" class="form-control" value="{{ old('name', $manager->name) }}" required>
+                        <input type="text" id="name" name="name" class="form-control" value="{{ old('name', $teacher->name) }}" required>
                         @error('name')
                             <span class="form-error" style="color:var(--danger); font-size:12px; margin-top:6px; display:block;"><i class="bi bi-exclamation-circle"></i> {{ $message }}</span>
                         @enderror
@@ -65,7 +75,7 @@
 
                     <div class="form-group">
                         <label for="phone" class="form-label">Nomor Telepon / WhatsApp</label>
-                        <input type="text" id="phone" name="phone" class="form-control" value="{{ old('phone', $manager->phone) }}" placeholder="Contoh: 081234567890">
+                        <input type="text" id="phone" name="phone" class="form-control" value="{{ old('phone', $teacher->phone) }}" placeholder="Contoh: 081234567890">
                         @error('phone')
                             <span class="form-error" style="color:var(--danger); font-size:12px; margin-top:6px; display:block;"><i class="bi bi-exclamation-circle"></i> {{ $message }}</span>
                         @enderror

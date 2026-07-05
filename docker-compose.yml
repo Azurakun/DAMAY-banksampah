@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: banksampah-app
+    restart: unless-stopped
+    ports:
+      - "8000:80"      # Serves Web App on http://localhost:8000
+      - "8080:8080"    # Serves Laravel Reverb WebSockets on port 8080
+    environment:
+      - APP_NAME=EcoBank
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://localhost:8000
+      - APP_KEY=base64:xQCALf87YsHp8RwkgYMeZlwNqFEwMvDfTruiZuQmnHE=
+      
+      # Database connection
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/html/database/database.sqlite
+      
+      # Laravel Driver settings
+      - SESSION_DRIVER=database
+      - CACHE_STORE=database
+      - QUEUE_CONNECTION=database
+      
+      # WebSocket (Laravel Reverb) Config
+      - REVERB_APP_ID=856535
+      - REVERB_APP_KEY=a5d7e6wrtwismkjqn5gn
+      - REVERB_APP_SECRET=rb97eg7uumei0zzwhrpi
+      - REVERB_HOST=localhost
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
+      - VITE_REVERB_APP_KEY=a5d7e6wrtwismkjqn5gn
+      - VITE_REVERB_HOST=localhost
+      - VITE_REVERB_PORT=8080
+      - VITE_REVERB_SCHEME=http
+    volumes:
+      # Persistent bind-mount for the SQLite database
+      - ./database:/var/www/html/database
+      # Persistent named volume for uploaded files & avatars
+      - app-storage:/var/www/html/storage/app
+
+volumes:
+  app-storage:

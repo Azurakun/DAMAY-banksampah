@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\WasteCategory;
 use App\Models\Transaction;
+use App\Models\Classroom;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\StoreSetoranRequest;
@@ -107,6 +108,7 @@ class OperatorController extends Controller
         // Update student balance and points
         $student->balance += $amount;
         $student->points += $points;
+        $student->weekly_points += $points;
         $student->save();
 
         return redirect()->route('operator.confirm', $transaction->id)->with('success', 'Setoran sampah berhasil disimpan!');
@@ -167,6 +169,34 @@ class OperatorController extends Controller
     }
 
     /**
+     * Operator profile update
+     */
+    public function updateProfile(Request $request)
+    {
+        $operator = Auth::user();
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'password' => ['nullable', 'string', 'min:6', 'confirmed'],
+        ], [
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'password.min' => 'Password minimal 6 karakter.'
+        ]);
+
+        $operator->name = $request->name;
+        $operator->phone = $request->phone;
+        
+        if ($request->filled('password')) {
+            $operator->password = \Illuminate\Support\Facades\Hash::make($request->password);
+        }
+
+        $operator->save();
+
+        return redirect()->route('operator.profile')->with('success', 'Profil Anda berhasil diubah.');
+    }
+
+
+    /**
      * Approve student cash out request
      */
     public function approveTarik($id)
@@ -215,7 +245,8 @@ class OperatorController extends Controller
     public function showRegisterForm()
     {
         $operator = Auth::user();
-        return view('operator.register', compact('operator'));
+        $classrooms = Classroom::orderBy('name')->get();
+        return view('operator.register', compact('operator', 'classrooms'));
     }
 
     /**
@@ -223,12 +254,19 @@ class OperatorController extends Controller
      */
     public function registerSingleStudent(RegisterSiswaRequest $request)
     {
+        $classroom_id = $request->classroom_id;
+        $classStr = $request->class;
+        
+        if (!$classroom_id && $classStr) {
+            $classroom = Classroom::firstOrCreate(['name' => trim($classStr)]);
+            $classroom_id = $classroom->id;
+        }
 
         User::create([
             'name' => $request->name,
             'email' => $request->email,
             'nisn' => $request->nisn,
-            'class' => $request->class,
+            'classroom_id' => $classroom_id,
             'phone' => $request->phone,
             'role' => 'siswa',
             'password' => \Illuminate\Support\Facades\Hash::make($request->input('password') ?: 'password'),

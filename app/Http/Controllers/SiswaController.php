@@ -16,7 +16,7 @@ class SiswaController extends Controller
      */
     public function dashboard()
     {
-        $user = Auth::user();
+        $user = User::find(Auth::id()); // Fresh query to get latest database attributes
         
         // Sum total recycled weight
         $totalWeight = Transaction::where('user_id', $user->id)
@@ -41,7 +41,21 @@ class SiswaController extends Controller
         $targetWeight = 50.00;
         $progressPercent = min(100, round(($totalWeight / $targetWeight) * 100));
 
-        return view('siswa.dashboard', compact('user', 'totalWeight', 'totalEarned', 'recentTransactions', 'progressPercent', 'targetWeight'));
+        // Get weekly league reset results banner
+        $weeklyReport = null;
+        if ($user->seen_weekly_result === false) {
+            $weeklyReport = [
+                'points' => $user->last_weekly_points,
+                'rank' => $user->last_weekly_rank,
+                'status' => $user->last_weekly_status,
+                'league' => $user->league,
+            ];
+            
+            $user->seen_weekly_result = true;
+            $user->save();
+        }
+
+        return view('siswa.dashboard', compact('user', 'totalWeight', 'totalEarned', 'recentTransactions', 'progressPercent', 'targetWeight', 'weeklyReport'));
     }
 
     /**
@@ -66,16 +80,31 @@ class SiswaController extends Controller
     {
         $user = Auth::user();
 
-        // Optimasi: Cache hasil query leaderboard selama 10 menit dan hanya ambil kolom yang diperlukan
-        $students = Cache::remember('leaderboard_students', 600, function () {
+        // Optimasi: Cache hasil query leaderboard sebagai array primitif untuk menghindari serialization issue di DB cache store
+        $studentsData = \Illuminate\Support\Facades\Cache::remember('leaderboard_students_v4', 600, function () {
             return User::where('role', 'siswa')
+                ->orderBy('weekly_points', 'desc')
                 ->orderBy('points', 'desc')
-                ->get(['id', 'name', 'points', 'class', 'avatar']);
+                ->orderBy('id', 'asc')
+                ->get(['id', 'name', 'points', 'weekly_points', 'league', 'class', 'avatar'])
+                ->map(function ($student) {
+                    return $student->toArray();
+                })
+                ->all();
         });
 
-        // Find my rank
+        // Konversi array ke object stdClass setelah diambil dari cache
+        $students = collect($studentsData)->map(function ($item) {
+            return (object) $item;
+        });
+
+        // Find my rank *within my own league*
         $myRank = 1;
-        foreach ($students as $index => $student) {
+        $myLeagueStudents = $students->filter(function($s) use ($user) {
+            return $s->league === $user->league;
+        })->values();
+
+        foreach ($myLeagueStudents as $index => $student) {
             if ($student->id === $user->id) {
                 $myRank = $index + 1;
                 break;
@@ -176,7 +205,11 @@ class SiswaController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048']
+            'avatar' => ['nullable', 'file', 'extensions:jpeg,png,jpg,gif,webp,JPEG,PNG,JPG,GIF,WEBP', 'max:5120'],
+            'password' => ['nullable', 'string', 'min:6', 'confirmed']
+        ], [
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'password.min' => 'Password minimal 6 karakter.'
         ]);
 
         // Handle Avatar File Upload
@@ -202,6 +235,11 @@ class SiswaController extends Controller
 
         $user->name = $request->name;
         $user->phone = $request->phone;
+
+        if ($request->filled('password')) {
+            $user->password = \Illuminate\Support\Facades\Hash::make($request->password);
+        }
+
         $user->save();
 
         return redirect()->route('siswa.profile')->with('success', 'Profil Anda telah berhasil diperbarui!');

@@ -59,9 +59,17 @@
                         <option value="walikelas">Wali Kelas</option>
                     </select>
                 </div>
-                <div class="form-group" id="staff-class-group" style="display:none;margin-bottom:0;">
-                    <label for="staff-class" class="form-label" style="font-size:11.5px;">Kelas Asuhan</label>
-                    <input type="text" id="staff-class" name="class" class="form-control" placeholder="Contoh: XII RPL 1" style="font-size:13px;padding:8px 10px;">
+            </div>
+
+            <div class="form-group" id="staff-class-group" style="display:none;margin-bottom:var(--s-16);">
+                <label class="form-label" style="font-size:11.5px;">Kelas Asuhan Wali Kelas (Bisa memilih lebih dari satu)</label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:var(--s-8);background:var(--surface-container);padding:var(--s-12);border-radius:var(--r-sm);border:1.5px solid var(--outline-variant);max-height:120px;overflow-y:auto;">
+                    @foreach($classrooms as $classroom)
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" name="classroom_ids[]" id="cls-{{ $classroom->id }}" value="{{ $classroom->id }}" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+                            <label for="cls-{{ $classroom->id }}" style="font-size:12.5px;font-weight:600;color:var(--on-surface);cursor:pointer;margin:0;">{{ $classroom->name }}</label>
+                        </div>
+                    @endforeach
                 </div>
             </div>
 
@@ -181,13 +189,16 @@
                             <td style="font-size:12px;color:var(--on-surface-variant);">
                                 {{ $user->created_at ? $user->created_at->format('d/m/y') : '—' }}
                             </td>
-                            <td style="text-align:center;">
+                            <td style="text-align:center; display:flex; justify-content:center; gap:6px;">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" style="padding:4px 8px;font-size:11px;min-height:auto; border-color:var(--primary); color:var(--primary);" onclick="showEditUserModal({{ json_encode($user) }}, {{ json_encode($user->classrooms->pluck('id')) }})">
+                                    <i class="bi bi-pencil-square"></i> Edit
+                                </button>
                                 @if($user->id !== auth()->id())
                                     <button type="button" class="btn btn-outline-danger btn-sm" style="padding:4px 8px;font-size:11px;min-height:auto;" onclick="showDeleteConfirmModal({{ $user->id }}, '{{ addslashes($user->name) }}', '{{ ucfirst($user->role) }}')">
                                         <i class="bi bi-trash"></i> Hapus
                                     </button>
                                 @else
-                                    <span class="badge" style="background:var(--surface-container);color:var(--outline);">Anda</span>
+                                    <span class="badge" style="background:var(--surface-container);color:var(--outline); align-self:center;">Anda</span>
                                 @endif
                             </td>
                         </tr>
@@ -231,6 +242,85 @@
         </div>
     </div>
 </div>
+
+{{-- MODAL EDIT USER --}}
+<div id="editUserModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);" class="animate-fade-in">
+    <div class="card" style="width:95%;max-width:550px;padding:var(--s-32);border-radius:var(--r-lg);box-shadow:0 12px 40px rgba(0,0,0,0.2); border-top: 5px solid var(--primary); max-height: 90vh; overflow-y: auto;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--s-20);">
+            <div>
+                <h3 style="font-family:var(--font-display); font-size:20px; font-weight:800; color:var(--primary); margin-bottom:4px;">Edit Akun Pengguna</h3>
+                <p style="font-size:13px; color:var(--on-surface-variant);">Peran: <strong id="edit-user-role-badge">—</strong></p>
+            </div>
+            <button type="button" onclick="closeEditUserModal()" style="background:none; border:none; font-size:28px; cursor:pointer; color:var(--on-surface-variant); line-height:1;">&times;</button>
+        </div>
+
+        <form id="edit-user-form" action="" method="POST">
+            @csrf
+            
+            <div class="form-group">
+                <label for="edit-name" class="form-label">Nama Lengkap</label>
+                <input type="text" id="edit-name" name="name" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-email" class="form-label">Alamat Email</label>
+                <input type="email" id="edit-email" name="email" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-phone" class="form-label">Nomor Telepon</label>
+                <input type="text" id="edit-phone" name="phone" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="edit-status" class="form-label">Status Akun</label>
+                <select id="edit-status" name="status" class="form-control" style="padding-top:0; padding-bottom:0;" required>
+                    <option value="approved">Aktif (Approved)</option>
+                    <option value="pending">Menunggu (Pending)</option>
+                    <option value="rejected">Ditolak (Rejected)</option>
+                </select>
+            </div>
+
+            {{-- Classroom Selection for Siswa --}}
+            <div class="form-group" id="edit-classroom-siswa-group" style="display:none;">
+                <label for="edit-classroom-id" class="form-label">Kelas Asal</label>
+                <select id="edit-classroom-id" name="classroom_id" class="form-control" style="padding-top:0; padding-bottom:0;">
+                    @foreach($classrooms as $cls)
+                        <option value="{{ $cls->id }}">{{ $cls->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Classroom Checkboxes for Wali Kelas --}}
+            <div class="form-group" id="edit-classroom-walikelas-group" style="display:none;">
+                <label class="form-label">Kelas Asuhan (Wali Kelas bisa mengampu lebih dari 1 kelas)</label>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--s-8); background:var(--surface-dim); padding:var(--s-12); border-radius:var(--r-md); border:1px solid var(--outline-variant); max-height:150px; overflow-y:auto;">
+                    @foreach($classrooms as $cls)
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+                            <input type="checkbox" name="classroom_ids[]" value="{{ $cls->id }}" class="edit-classroom-checkbox">
+                            {{ $cls->name }}
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed var(--outline-variant); margin: var(--s-24) 0; padding-top: var(--s-16);">
+                <h4 style="font-size:13.5px; font-weight:800; color:var(--on-surface); margin-bottom:var(--s-12); display:flex; align-items:center; gap:6px;">
+                    <i class="bi bi-key" style="color:var(--accent);"></i> Ganti Password (Opsional)
+                </h4>
+                <div class="form-group">
+                    <label for="edit-password" class="form-label">Password Baru</label>
+                    <input type="password" id="edit-password" name="password" class="form-control" placeholder="Kosongkan jika tidak diganti">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--s-12); margin-top:var(--s-28);">
+                <button type="button" class="btn btn-outline-secondary w-full" onclick="closeEditUserModal()">Batal</button>
+                <button type="submit" class="btn btn-primary w-full">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -249,15 +339,13 @@
     // Toggle class field based on role selection
     function toggleStaffClassField(role) {
         const classGroup = document.getElementById('staff-class-group');
-        const classInput = document.getElementById('staff-class');
         
         if (role === 'walikelas') {
             classGroup.style.display = 'block';
-            classInput.setAttribute('required', 'required');
         } else {
             classGroup.style.display = 'none';
-            classInput.removeAttribute('required');
-            classInput.value = '';
+            const checkboxes = classGroup.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
         }
     }
 
@@ -282,6 +370,59 @@
 
     function submitDeleteForm() {
         deleteForm.submit();
+    }
+
+    function showEditUserModal(user, assignedClassrooms) {
+        // Populate inputs
+        document.getElementById('edit-name').value = user.name;
+        document.getElementById('edit-email').value = user.email;
+        document.getElementById('edit-phone').value = user.phone || '';
+        document.getElementById('edit-status').value = user.status;
+        document.getElementById('edit-password').value = '';
+        
+        // Form Action
+        document.getElementById('edit-user-form').action = `/manajer/users/${user.id}`;
+        
+        // Role badge
+        const rolesMap = {
+            'manajer': 'Manajer',
+            'walikelas': 'Wali Kelas',
+            'operator': 'Operator',
+            'siswa': 'Siswa (Nasabah)'
+        };
+        document.getElementById('edit-user-role-badge').innerText = rolesMap[user.role] || user.role;
+
+        // Hide/Show classroom elements based on role
+        const siswaGroup = document.getElementById('edit-classroom-siswa-group');
+        const waliGroup = document.getElementById('edit-classroom-walikelas-group');
+        
+        siswaGroup.style.display = 'none';
+        waliGroup.style.display = 'none';
+
+        // Uncheck all classroom checkboxes
+        const checkboxes = document.querySelectorAll('.edit-classroom-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+
+        if (user.role === 'siswa') {
+            siswaGroup.style.display = 'block';
+            document.getElementById('edit-classroom-id').value = user.classroom_id || '';
+        } else if (user.role === 'walikelas') {
+            waliGroup.style.display = 'block';
+            // Check boxes for assigned classrooms
+            if (assignedClassrooms && assignedClassrooms.length > 0) {
+                checkboxes.forEach(cb => {
+                    if (assignedClassrooms.includes(parseInt(cb.value))) {
+                        cb.checked = true;
+                    }
+                });
+            }
+        }
+
+        document.getElementById('editUserModal').style.display = 'flex';
+    }
+
+    function closeEditUserModal() {
+        document.getElementById('editUserModal').style.display = 'none';
     }
 </script>
 @endsection
