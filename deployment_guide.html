@@ -840,7 +840,7 @@ sudo ufw allow 22/tcp     <span class="cmd-comment"># SSH</span>
 sudo ufw allow 80/tcp     <span class="cmd-comment"># HTTP</span>
 sudo ufw allow 443/tcp    <span class="cmd-comment"># HTTPS</span>
 sudo ufw allow 8001/tcp   <span class="cmd-comment"># EcoBank HTTP Port</span>
-sudo ufw allow 8080/tcp   <span class="cmd-comment"># Reverb WebSocket Port</span>
+sudo ufw allow 8088/tcp   <span class="cmd-comment"># Reverb WebSocket Port</span>
 
 <span class="cmd-prompt"># Enable Firewall</span>
 sudo ufw --force enable
@@ -989,7 +989,7 @@ services:
     restart: unless-stopped
     ports:
       - "8001:80"      # Web App Port
-      - "8080:8080"    # Laravel Reverb WebSockets Port
+      - "8088:8080"    # Laravel Reverb WebSockets Port
     environment:
       - APP_NAME=EcoBank
       - APP_ENV=production
@@ -1119,7 +1119,7 @@ sudo cloudflared service install &lt;YOUR_TUNNEL_TOKEN&gt;</code></pre>
                                 <td><code>ws</code> (WebSockets)</td>
                                 <td>ecobank.my.id</td>
                                 <td>HTTP</td>
-                                <td><code>http://localhost:8080</code></td>
+                                <td><code>http://localhost:8088</code></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1129,7 +1129,7 @@ sudo cloudflared service install &lt;YOUR_TUNNEL_TOKEN&gt;</code></pre>
                 <div id="tab-cf-direct" class="tab-content">
                     <h3>Step-by-Step Direct DNS Setup:</h3>
                     <ol style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
-                        <li>In your Wi-Fi Router Settings, forward Public Port <code>80</code> to <code>192.168.1.10:8001</code> and Port <code>443</code> to <code>192.168.1.10:8001</code>. Also forward Port <code>8080</code> for WebSockets.</li>
+                        <li>In your Wi-Fi Router Settings, forward Public Port <code>80</code> to <code>192.168.1.10:8001</code> and Port <code>443</code> to <code>192.168.1.10:8001</code>. Also forward Port <code>8088</code> for WebSockets.</li>
                         <li>Find your router's Public IP address (e.g. by checking <code>curl ifconfig.me</code>).</li>
                         <li>In Cloudflare DNS Management, create an <strong>A Record</strong>:
                             <ul>
