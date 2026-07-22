@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     ports:
       - "8001:80"      # Web App Port
-      - "8088:8080"    # Laravel Reverb WebSockets Port
+      - "8989:8080"    # Laravel Reverb WebSockets Port
     environment:
       - APP_NAME=EcoBank
       - APP_ENV=production
