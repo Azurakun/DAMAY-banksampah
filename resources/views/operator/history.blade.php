@@ -79,11 +79,10 @@
                         {{ $tx->type === 'setor' ? '+' : '−' }} Rp {{ number_format($tx->amount, 0, ',', '.') }}
                     </span>
                     <span class="transaction-status {{ strtolower($tx->status) }}">{{ $tx->status }}</span>
-                    @if($tx->type === 'setor')
-                        <a href="{{ route('operator.confirm', $tx->id) }}" style="font-size:11px;color:var(--primary);text-decoration:none;font-weight:700;margin-top:2px;">
-                            <i class="bi bi-receipt"></i> Struk
-                        </a>
-                    @endif
+                    <a href="{{ route('operator.transaction.receipt', $tx->id) }}"
+                       style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:700; margin-top:2px; display:inline-flex; align-items:center; gap:3px;">
+                        <i class="bi bi-receipt"></i> Struk
+                    </a>
                 </div>
             </div>
         @empty

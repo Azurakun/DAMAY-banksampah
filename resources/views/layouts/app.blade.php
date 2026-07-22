@@ -24,6 +24,150 @@
     <!-- App CSS -->
     <link rel="stylesheet" href="/css/app.css?v={{ filemtime(public_path('css/app.css')) }}">
 
+    <!-- Global Print Reset & Bottom Sheet Menus styles -->
+    <style>
+    @media print {
+        /* Use visibility so nested .rx-thermal-print / .drx-thermal-print can override */
+        body * { visibility: hidden !important; }
+
+        /* Remove body/main padding that would shift receipt off paper */
+        body, .main-content, #app {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+        }
+    }
+
+    /* Bottom item button styles */
+    .nav-item-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--on-surface-variant);
+        flex: 1;
+        height: 100%;
+        gap: 3px;
+        transition: color var(--dur-base) var(--ease);
+        position: relative;
+        padding: 4px 0 0;
+        margin: 0;
+    }
+    .nav-item-btn:focus {
+        outline: none;
+    }
+    .nav-item-btn.active {
+        color: var(--primary);
+    }
+
+    /* Bottom sheets overlay style */
+    .bottom-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 999;
+        display: none;
+        justify-content: center;
+        align-items: flex-end;
+    }
+
+    .bottom-menu-content {
+        background: var(--surface);
+        width: 100%;
+        max-width: 600px;
+        border-radius: var(--r-xl) var(--r-xl) 0 0;
+        box-shadow: 0 -8px 32px rgba(18,53,38,0.15);
+        padding: var(--s-20);
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        box-sizing: border-box;
+    }
+
+    .bottom-menu-overlay.active {
+        display: flex;
+    }
+
+    .bottom-menu-overlay.active .bottom-menu-content {
+        transform: translateY(0);
+    }
+
+    .bottom-menu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--s-16);
+        border-bottom: 1px solid var(--outline-variant);
+        padding-bottom: var(--s-12);
+    }
+
+    .bottom-menu-header .title {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: var(--font-display);
+    }
+
+    .bottom-menu-header .close-btn {
+        background: var(--surface-dim);
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--on-surface-variant);
+        font-size: 18px;
+    }
+
+    .bottom-menu-links {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-8);
+    }
+
+    .menu-link-item {
+        display: flex;
+        align-items: center;
+        gap: var(--s-12);
+        padding: var(--s-12) var(--s-16);
+        border-radius: var(--r-md);
+        text-decoration: none;
+        color: var(--on-surface-variant);
+        font-weight: 700;
+        font-size: 13.5px;
+        transition: background 0.2s;
+    }
+
+    .menu-link-item i {
+        font-size: 18px;
+        color: var(--primary);
+    }
+
+    .menu-link-item:hover, .menu-link-item.active {
+        background: var(--primary-container);
+        color: var(--primary);
+    }
+
+    .menu-link-item.text-danger i {
+        color: var(--danger);
+    }
+    .menu-link-item.text-danger:hover {
+        background: var(--danger-container);
+        color: var(--danger);
+    }
+    </style>
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/192/000000/eco-energy.png">
@@ -82,12 +226,12 @@
                         <i class="bi bi-speedometer2"></i> Dasbor
                     </a>
                     
-                    <div class="menu-section">KELOLA NASABAH</div>
-                    <a href="{{ route('operator.students.register') }}" class="menu-link {{ Route::is('operator.students.register') ? 'active' : '' }}">
-                        <i class="bi bi-person-plus"></i> Registrasi
-                    </a>
+                    <div class="menu-section">KELOLA OPERASIONAL</div>
                     <a href="{{ route('operator.history') }}" class="menu-link {{ Route::is('operator.history') ? 'active' : '' }}">
                         <i class="bi bi-clock-history"></i> Riwayat
+                    </a>
+                    <a href="{{ route('operator.distributions.index') }}" class="menu-link {{ Route::is('operator.distributions.*') ? 'active' : '' }}">
+                        <i class="bi bi-truck"></i> Distribusi Sampah
                     </a>
                     
                     <div class="menu-section">LAINNYA</div>
@@ -103,9 +247,17 @@
                         <i class="bi bi-mortarboard"></i> Portal Wali Kelas
                     </a>
                     
+                    <div class="menu-section">KELOLA SISWA</div>
+                    <a href="{{ route('walikelas.students.register') }}" class="menu-link {{ Route::is('walikelas.students.register') ? 'active' : '' }}">
+                        <i class="bi bi-person-plus-fill"></i> Registrasi Siswa
+                    </a>
+                    
                     <div class="menu-section">PERSUBTAN</div>
                     <a href="{{ route('walikelas.pendaftar') }}" class="menu-link {{ Route::is('walikelas.pendaftar') ? 'active' : '' }}">
                         <i class="bi bi-person-check-fill"></i> Pendaftar Baru
+                    </a>
+                    <a href="{{ route('walikelas.reports') }}" class="menu-link {{ Route::is('walikelas.reports') ? 'active' : '' }}">
+                        <i class="bi bi-file-earmark-bar-graph"></i> Laporan Kelas
                     </a>
                     
                     <div class="menu-section">LAINNYA</div>
@@ -118,6 +270,20 @@
                         <i class="bi bi-shield-check"></i> Portal Manajer
                     </a>
                     
+                    <div class="menu-section">PEMANTAUAN</div>
+                    <a href="{{ route('manajer.stok') }}" class="menu-link {{ Route::is('manajer.stok') ? 'active' : '' }}">
+                        <i class="bi bi-archive-fill"></i> Stok Gudang
+                    </a>
+                    <a href="{{ route('manajer.performaKelas') }}" class="menu-link {{ Route::is('manajer.performaKelas') ? 'active' : '' }}">
+                        <i class="bi bi-bar-chart-line-fill"></i> Performa Kelas
+                    </a>
+                    <a href="{{ route('manajer.logTransaksi') }}" class="menu-link {{ Route::is('manajer.logTransaksi') ? 'active' : '' }}">
+                        <i class="bi bi-clock-history"></i> Log Transaksi
+                    </a>
+                    <a href="{{ route('manajer.siswaTeraktif') }}" class="menu-link {{ Route::is('manajer.siswaTeraktif') ? 'active' : '' }}">
+                        <i class="bi bi-trophy-fill"></i> Siswa Teraktif
+                    </a>
+                    
                     <div class="menu-section">KELOLA</div>
                     <a href="{{ route('manajer.classrooms') }}" class="menu-link {{ Route::is('manajer.classrooms') ? 'active' : '' }}">
                         <i class="bi bi-building"></i> Kelola Kelas
@@ -125,7 +291,18 @@
                     <a href="{{ route('manajer.users') }}" class="menu-link {{ Route::is('manajer.users') ? 'active' : '' }}">
                         <i class="bi bi-people-fill"></i> Daftar Pengguna
                     </a>
+                    <a href="{{ route('manajer.categories.index') }}" class="menu-link {{ Route::is('manajer.categories.*') ? 'active' : '' }}">
+                        <i class="bi bi-tags"></i> Kelola Harga
+                    </a>
+                    <a href="{{ route('manajer.distributions.index') }}" class="menu-link {{ Route::is('manajer.distributions.*') ? 'active' : '' }}">
+                        <i class="bi bi-truck"></i> Distribusi Sampah
+                    </a>
                     
+                    <div class="menu-section">LAPORAN</div>
+                    <a href="{{ route('manajer.reports') }}" class="menu-link {{ Route::is('manajer.reports') ? 'active' : '' }}">
+                        <i class="bi bi-file-earmark-bar-graph"></i> Laporan Sekolah
+                    </a>
+
                     <div class="menu-section">LAINNYA</div>
                     <a href="{{ route('manajer.profile') }}" class="menu-link {{ Route::is('manajer.profile') ? 'active' : '' }}">
                         <i class="bi bi-person"></i> Profil
@@ -230,6 +407,21 @@
                 </div>
             @endif
 
+            {{-- Validation Errors --}}
+            @if($errors->any())
+                <div class="alert alert-danger animate-fade-in" id="flash-validation" style="margin-bottom:var(--s-16); padding:var(--s-16); border-radius:var(--r-md); background:var(--danger-container); border:1px solid hsl(8, 55%, 80%); color:var(--danger); display:flex; gap:var(--s-12); align-items:flex-start;">
+                    <span class="alert-icon" style="font-size:18px; color:var(--danger); line-height:1;"><i class="bi bi-exclamation-triangle-fill"></i></span>
+                    <div class="alert-message" style="display:flex; flex-direction:column; gap:4px; font-size:13.5px; line-height:1.4;">
+                        <strong style="color:var(--danger);">Harap perbaiki kesalahan berikut:</strong>
+                        <ul style="margin:4px 0 0 0; padding-left:16px;">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            @endif
+
             @yield('content')
         </main>
     </div>
@@ -275,16 +467,16 @@
                         <span class="nav-label">Dasbor</span>
                     </div>
                 </a>
-                <a href="{{ route('operator.students.register') }}" class="nav-item {{ Route::is('operator.students.register') ? 'active' : '' }}">
-                    <div class="nav-pill">
-                        <span class="nav-icon"><i class="bi bi-person-plus{{ Route::is('operator.students.register') ? '-fill' : '' }}"></i></span>
-                        <span class="nav-label">Daftar</span>
-                    </div>
-                </a>
                 <a href="{{ route('operator.history') }}"           class="nav-item {{ Route::is('operator.history')           ? 'active' : '' }}">
                     <div class="nav-pill">
                         <span class="nav-icon"><i class="bi bi-clock-history"></i></span>
                         <span class="nav-label">Riwayat</span>
+                    </div>
+                </a>
+                <a href="{{ route('operator.distributions.index') }}" class="nav-item {{ Route::is('operator.distributions.*') ? 'active' : '' }}">
+                    <div class="nav-pill">
+                        <span class="nav-icon"><i class="bi bi-truck"></i></span>
+                        <span class="nav-label">Distribusi</span>
                     </div>
                 </a>
                 <a href="{{ route('operator.profile') }}"           class="nav-item {{ Route::is('operator.profile')           ? 'active' : '' }}">
@@ -300,10 +492,22 @@
                         <span class="nav-label">Dasbor</span>
                     </div>
                 </a>
+                <a href="{{ route('walikelas.students.register') }}" class="nav-item {{ Route::is('walikelas.students.register') ? 'active' : '' }}">
+                    <div class="nav-pill">
+                        <span class="nav-icon"><i class="bi bi-person-plus{{ Route::is('walikelas.students.register') ? '-fill' : '' }}"></i></span>
+                        <span class="nav-label">Registrasi</span>
+                    </div>
+                </a>
                 <a href="{{ route('walikelas.pendaftar') }}"    class="nav-item {{ Route::is('walikelas.pendaftar') ? 'active' : '' }}">
                     <div class="nav-pill">
                         <span class="nav-icon"><i class="bi bi-person-check{{ Route::is('walikelas.pendaftar') ? '-fill' : '' }}"></i></span>
                         <span class="nav-label">Pendaftar</span>
+                    </div>
+                </a>
+                <a href="{{ route('walikelas.reports') }}"      class="nav-item {{ Route::is('walikelas.reports') ? 'active' : '' }}">
+                    <div class="nav-pill">
+                        <span class="nav-icon"><i class="bi bi-file-earmark-bar-graph{{ Route::is('walikelas.reports') ? '-fill' : '' }}"></i></span>
+                        <span class="nav-label">Laporan</span>
                     </div>
                 </a>
                 <a href="{{ route('walikelas.profile') }}"      class="nav-item {{ Route::is('walikelas.profile') ? 'active' : '' }}">
@@ -313,30 +517,30 @@
                     </div>
                 </a>
             @elseif(Auth::user()->role === 'manajer')
-                <a href="{{ route('manajer.dashboard') }}"      class="nav-item {{ Route::is('manajer.dashboard') ? 'active' : '' }}">
+                <button type="button" class="nav-item-btn {{ Route::is('manajer.dashboard') || Route::is('manajer.stok') || Route::is('manajer.performaKelas') || Route::is('manajer.logTransaksi') || Route::is('manajer.siswaTeraktif') ? 'active' : '' }}" onclick="toggleBottomMenu('m-pemantauan')">
                     <div class="nav-pill">
-                        <span class="nav-icon"><i class="bi bi-speedometer2"></i></span>
-                        <span class="nav-label">Dasbor</span>
+                        <span class="nav-icon"><i class="bi bi-eye-fill"></i></span>
+                        <span class="nav-label">Pemantauan</span>
                     </div>
-                </a>
-                <a href="{{ route('manajer.classrooms') }}"     class="nav-item {{ Route::is('manajer.classrooms') ? 'active' : '' }}">
+                </button>
+                <button type="button" class="nav-item-btn {{ Route::is('manajer.classrooms') || Route::is('manajer.users') || Route::is('manajer.categories.*') || Route::is('manajer.distributions.*') ? 'active' : '' }}" onclick="toggleBottomMenu('m-kelola')">
                     <div class="nav-pill">
-                        <span class="nav-icon"><i class="bi bi-building{{ Route::is('manajer.classrooms') ? '-fill' : '' }}"></i></span>
-                        <span class="nav-label">Kelas</span>
+                        <span class="nav-icon"><i class="bi bi-folder-fill"></i></span>
+                        <span class="nav-label">Kelola</span>
                     </div>
-                </a>
-                <a href="{{ route('manajer.users') }}"          class="nav-item {{ Route::is('manajer.users') ? 'active' : '' }}">
+                </button>
+                <button type="button" class="nav-item-btn {{ Route::is('manajer.reports') ? 'active' : '' }}" onclick="toggleBottomMenu('m-laporan')">
                     <div class="nav-pill">
-                        <span class="nav-icon"><i class="bi bi-people{{ Route::is('manajer.users') ? '-fill' : '' }}"></i></span>
-                        <span class="nav-label">Pengguna</span>
+                        <span class="nav-icon"><i class="bi bi-file-earmark-bar-graph-fill"></i></span>
+                        <span class="nav-label">Laporan</span>
                     </div>
-                </a>
-                <a href="{{ route('manajer.profile') }}"        class="nav-item {{ Route::is('manajer.profile') ? 'active' : '' }}">
+                </button>
+                <button type="button" class="nav-item-btn {{ Route::is('manajer.profile') ? 'active' : '' }}" onclick="toggleBottomMenu('m-lainnya')">
                     <div class="nav-pill">
-                        <span class="nav-icon"><i class="bi bi-person{{ Route::is('manajer.profile') ? '-fill' : '' }}"></i></span>
-                        <span class="nav-label">Profil</span>
+                        <span class="nav-icon"><i class="bi bi-three-dots"></i></span>
+                        <span class="nav-label">Lainnya</span>
                     </div>
-                </a>
+                </button>
             @endif
         </nav>
     @endauth
@@ -390,7 +594,127 @@
             dd.style.display = 'none';
         }
     });
+
+    // Toggle Mobile Bottom sheets for Manager
+    function toggleBottomMenu(id) {
+        // Close all other menus first
+        document.querySelectorAll('.bottom-menu-overlay').forEach(el => {
+            if (el.id !== id) {
+                el.classList.remove('active');
+                el.style.display = 'none';
+            }
+        });
+
+        const menu = document.getElementById(id);
+        if (menu) {
+            const isActive = menu.classList.contains('active');
+            if (isActive) {
+                closeBottomMenu();
+            } else {
+                menu.style.display = 'flex';
+                // Force a reflow for transition animation
+                menu.offsetHeight;
+                menu.classList.add('active');
+            }
+        }
+    }
+
+    function closeBottomMenu() {
+        document.querySelectorAll('.bottom-menu-overlay').forEach(el => {
+            el.classList.remove('active');
+            setTimeout(() => {
+                if (!el.classList.contains('active')) {
+                    el.style.display = 'none';
+                }
+            }, 300);
+        });
+    }
 </script>
+
+<!-- ── BOTTOM MENUS (Manager Mobile UX popup overlays) ── -->
+@auth
+    @if(Auth::user()->role === 'manajer')
+        <div id="m-pemantauan" class="bottom-menu-overlay" onclick="closeBottomMenu()">
+            <div class="bottom-menu-content" onclick="event.stopPropagation()">
+                <div class="bottom-menu-header">
+                    <span class="title">Pemantauan</span>
+                    <button type="button" class="close-btn" onclick="closeBottomMenu()"><i class="bi bi-x"></i></button>
+                </div>
+                <div class="bottom-menu-links">
+                    <a href="{{ route('manajer.dashboard') }}" class="menu-link-item {{ Route::is('manajer.dashboard') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2"></i> Dasbor Manajer
+                    </a>
+                    <a href="{{ route('manajer.stok') }}" class="menu-link-item {{ Route::is('manajer.stok') ? 'active' : '' }}">
+                        <i class="bi bi-archive-fill"></i> Stok Gudang
+                    </a>
+                    <a href="{{ route('manajer.performaKelas') }}" class="menu-link-item {{ Route::is('manajer.performaKelas') ? 'active' : '' }}">
+                        <i class="bi bi-bar-chart-line-fill"></i> Performa Kelas
+                    </a>
+                    <a href="{{ route('manajer.logTransaksi') }}" class="menu-link-item {{ Route::is('manajer.logTransaksi') ? 'active' : '' }}">
+                        <i class="bi bi-clock-history"></i> Log Transaksi
+                    </a>
+                    <a href="{{ route('manajer.siswaTeraktif') }}" class="menu-link-item {{ Route::is('manajer.siswaTeraktif') ? 'active' : '' }}">
+                        <i class="bi bi-trophy-fill"></i> Siswa Teraktif
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-kelola" class="bottom-menu-overlay" onclick="closeBottomMenu()">
+            <div class="bottom-menu-content" onclick="event.stopPropagation()">
+                <div class="bottom-menu-header">
+                    <span class="title">Kelola</span>
+                    <button type="button" class="close-btn" onclick="closeBottomMenu()"><i class="bi bi-x"></i></button>
+                </div>
+                <div class="bottom-menu-links">
+                    <a href="{{ route('manajer.classrooms') }}" class="menu-link-item {{ Route::is('manajer.classrooms') ? 'active' : '' }}">
+                        <i class="bi bi-building"></i> Kelola Kelas
+                    </a>
+                    <a href="{{ route('manajer.users') }}" class="menu-link-item {{ Route::is('manajer.users') ? 'active' : '' }}">
+                        <i class="bi bi-people-fill"></i> Daftar Pengguna
+                    </a>
+                    <a href="{{ route('manajer.categories.index') }}" class="menu-link-item {{ Route::is('manajer.categories.*') ? 'active' : '' }}">
+                        <i class="bi bi-tags"></i> Kelola Harga
+                    </a>
+                    <a href="{{ route('manajer.distributions.index') }}" class="menu-link-item {{ Route::is('manajer.distributions.*') ? 'active' : '' }}">
+                        <i class="bi bi-truck"></i> Distribusi Sampah
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-laporan" class="bottom-menu-overlay" onclick="closeBottomMenu()">
+            <div class="bottom-menu-content" onclick="event.stopPropagation()">
+                <div class="bottom-menu-header">
+                    <span class="title">Laporan</span>
+                    <button type="button" class="close-btn" onclick="closeBottomMenu()"><i class="bi bi-x"></i></button>
+                </div>
+                <div class="bottom-menu-links">
+                    <a href="{{ route('manajer.reports') }}" class="menu-link-item {{ Route::is('manajer.reports') ? 'active' : '' }}">
+                        <i class="bi bi-file-earmark-bar-graph"></i> Laporan Sekolah
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-lainnya" class="bottom-menu-overlay" onclick="closeBottomMenu()">
+            <div class="bottom-menu-content" onclick="event.stopPropagation()">
+                <div class="bottom-menu-header">
+                    <span class="title">Lainnya</span>
+                    <button type="button" class="close-btn" onclick="closeBottomMenu()"><i class="bi bi-x"></i></button>
+                </div>
+                <div class="bottom-menu-links">
+                    <a href="{{ route('manajer.profile') }}" class="menu-link-item {{ Route::is('manajer.profile') ? 'active' : '' }}">
+                        <i class="bi bi-person"></i> Profil Saya
+                    </a>
+                    <a href="#" class="menu-link-item text-danger" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                        <i class="bi bi-box-arrow-right"></i> Keluar
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
+@endauth
 
 <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 

@@ -6,6 +6,11 @@ use App\Models\User;
 use App\Models\Transaction;
 use App\Models\Classroom;
 use App\Models\Setting;
+use App\Models\WasteCategory;
+use App\Models\Distribution;
+use App\Exports\DynamicTransactionsExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -53,10 +58,66 @@ class ManajerController extends Controller
             ->take(5)
             ->get();
 
+        // 6-Month Inflow/Outflow Chart Data (Weight and Value)
+        $labels = [];
+        $inflowWeightData = [];
+        $outflowWeightData = [];
+        $inflowValueData = [];
+        $outflowValueData = [];
+
+        for ($i = 5; $i >= 0; $i--) {
+            $monthDate = now()->subMonths($i);
+            $labels[] = $monthDate->translatedFormat('M Y');
+            
+            // Inflow (Setor)
+            $inflowW = Transaction::where('type', 'setor')
+                ->where('status', 'Berhasil')
+                ->whereYear('created_at', $monthDate->year)
+                ->whereMonth('created_at', $monthDate->month)
+                ->sum('weight');
+            $inflowWeightData[] = (float)$inflowW;
+
+            $inflowV = Transaction::where('type', 'setor')
+                ->where('status', 'Berhasil')
+                ->whereYear('created_at', $monthDate->year)
+                ->whereMonth('created_at', $monthDate->month)
+                ->sum('amount');
+            $inflowValueData[] = (int)$inflowV;
+
+            // Outflow (Distribusi)
+            $outflowW = Distribution::whereYear('batch_date', $monthDate->year)
+                ->whereMonth('batch_date', $monthDate->month)
+                ->sum('total_weight');
+            $outflowWeightData[] = (float)$outflowW;
+
+            $outflowV = Distribution::whereYear('batch_date', $monthDate->year)
+                ->whereMonth('batch_date', $monthDate->month)
+                ->sum('total_value');
+            $outflowValueData[] = (int)$outflowV;
+        }
+
+        // Warehouse Stock Overview
+        $warehouseStock = WasteCategory::all()->map(function($category) {
+            $totalSetor = Transaction::where('waste_category_id', $category->id)
+                ->where('type', 'setor')
+                ->where('status', 'Berhasil')
+                ->sum('weight');
+
+            $totalDistributed = \App\Models\DistributionItem::where('waste_category_id', $category->id)
+                ->sum('weight');
+
+            $category->total_setor = $totalSetor;
+            $category->total_distributed = $totalDistributed;
+            $category->available_stock = max(0.00, (float)($totalSetor - $totalDistributed));
+            return $category;
+        });
+
         return view('manajer.dashboard', compact(
             'manager', 'totalStudents', 'totalWeightRecycled', 
             'totalSchoolBalance', 'totalSchoolPoints', 'totalTransactionsCount', 
-            'allRecentTransactions', 'classPerformance', 'topStudents'
+            'allRecentTransactions', 'classPerformance', 'topStudents',
+            'labels', 'inflowWeightData', 'outflowWeightData', 'inflowValueData', 'outflowValueData',
+            'warehouseStock'
         ));
     }
 
@@ -422,5 +483,455 @@ class ManajerController extends Controller
         }
         
         return $currentClass; // Fallback unchanged if it doesn't match standard grade prefixes
+    }
+
+    /**
+     * Display School-Wide dynamic report console.
+     */
+    public function reports(Request $request)
+    {
+        $manager = Auth::user();
+        $categories = WasteCategory::all();
+        $classrooms = Classroom::orderBy('name')->get();
+
+        $query = Transaction::with(['student', 'wasteCategory', 'operator'])->filter($request->all());
+        $transactions = $query->orderBy('created_at', 'desc')->get();
+
+        // Totals
+        $totalWeight = $transactions->where('type', 'setor')->where('status', 'Berhasil')->sum('weight');
+        $totalSetorAmount = $transactions->where('type', 'setor')->where('status', 'Berhasil')->sum('amount');
+        $totalTarikAmount = $transactions->where('type', 'tarik')->where('status', 'Berhasil')->sum('amount');
+
+        return view('manajer.reports', compact(
+            'manager', 'transactions', 'categories', 'classrooms', 
+            'totalWeight', 'totalSetorAmount', 'totalTarikAmount'
+        ));
+    }
+
+    /**
+     * Export school-wide reports to Excel.
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = Transaction::with(['student', 'wasteCategory'])->filter($request->all())->orderBy('created_at', 'desc');
+        return Excel::download(new DynamicTransactionsExport($query), 'laporan_transaksi_sekolah_'.date('Ymd').'.xlsx');
+    }
+
+    /**
+     * Export school-wide reports to PDF.
+     */
+    public function exportPdf(Request $request)
+    {
+        $filters = $request->all();
+        $query = Transaction::with(['student', 'wasteCategory'])->filter($filters)->orderBy('created_at', 'desc');
+        $transactions = $query->get();
+
+        $totalWeight = $transactions->where('type', 'setor')->where('status', 'Berhasil')->sum('weight');
+        $totalSetorAmount = $transactions->where('type', 'setor')->where('status', 'Berhasil')->sum('amount');
+        $totalTarikAmount = $transactions->where('type', 'tarik')->where('status', 'Berhasil')->sum('amount');
+
+        $categoryName = null;
+        if (!empty($filters['waste_category_id'])) {
+            $cat = WasteCategory::find($filters['waste_category_id']);
+            $categoryName = $cat ? $cat->name : null;
+        }
+
+        $pdf = Pdf::loadView('manajer.pdf.reports', compact(
+            'transactions', 'filters', 'totalWeight', 
+            'totalSetorAmount', 'totalTarikAmount', 'categoryName'
+        ));
+
+        return $pdf->download('laporan_transaksi_sekolah_'.date('Ymd').'.pdf');
+    }
+
+    /**
+     * List all waste categories for pricing management.
+     */
+    public function indexCategories()
+    {
+        $manager = Auth::user();
+        $categories = WasteCategory::all();
+        return view('manajer.waste_categories.index', compact('manager', 'categories'));
+    }
+
+    /**
+     * Show form to create new waste category.
+     */
+    public function createCategory()
+    {
+        $manager = Auth::user();
+        return view('manajer.waste_categories.create', compact('manager'));
+    }
+
+    /**
+     * Store new waste category.
+     */
+    public function storeCategory(Request $request)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'key' => ['required', 'string', 'max:50', 'unique:waste_categories,key'],
+            'price_per_kg' => ['required', 'integer', 'min:0'],
+            'points_per_kg' => ['required', 'integer', 'min:0'],
+            'icon_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp,svg', 'max:2048'],
+            'icon' => ['required_without:icon_image', 'nullable', 'string', 'max:50'],
+        ], [
+            'key.unique' => 'Slug/Key ini sudah digunakan oleh kategori lain.',
+            'icon.required_without' => 'Ikon berupa emoji/teks wajib diisi jika Anda tidak mengunggah berkas gambar.',
+        ]);
+
+        $icon = $request->icon;
+
+        if ($request->hasFile('icon_image')) {
+            $file = $request->file('icon_image');
+            $filename = 'cat_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $destinationPath = public_path('uploads/categories');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0755, true);
+            }
+            $file->move($destinationPath, $filename);
+            $icon = '/uploads/categories/' . $filename;
+        }
+
+        WasteCategory::create([
+            'name' => $request->name,
+            'key' => strtolower(trim($request->key)),
+            'price_per_kg' => $request->price_per_kg,
+            'points_per_kg' => $request->points_per_kg,
+            'icon' => $icon,
+        ]);
+
+        return redirect()->route('manajer.categories.index')->with('success', 'Kategori sampah baru berhasil ditambahkan.');
+    }
+
+    /**
+     * Show form to edit waste category.
+     */
+    public function editCategory($id)
+    {
+        $manager = Auth::user();
+        $category = WasteCategory::findOrFail($id);
+        return view('manajer.waste_categories.edit', compact('manager', 'category'));
+    }
+
+    /**
+     * Update waste category.
+     */
+    public function updateCategory(Request $request, $id)
+    {
+        $category = WasteCategory::findOrFail($id);
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'key' => ['required', 'string', 'max:50', 'unique:waste_categories,key,' . $id],
+            'price_per_kg' => ['required', 'integer', 'min:0'],
+            'points_per_kg' => ['required', 'integer', 'min:0'],
+            'icon_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp,svg', 'max:2048'],
+            'icon' => ['nullable', 'string', 'max:50'],
+        ], [
+            'key.unique' => 'Slug/Key ini sudah digunakan oleh kategori lain.',
+        ]);
+
+        $icon = $request->filled('icon') ? $request->icon : $category->icon;
+
+        if ($request->hasFile('icon_image')) {
+            $file = $request->file('icon_image');
+            $filename = 'cat_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $destinationPath = public_path('uploads/categories');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0755, true);
+            }
+            $file->move($destinationPath, $filename);
+
+            // Delete old image if it was an uploaded file
+            if ($category->icon && str_starts_with($category->icon, '/uploads/') && file_exists(public_path($category->icon))) {
+                @unlink(public_path($category->icon));
+            }
+
+            $icon = '/uploads/categories/' . $filename;
+        }
+
+        $category->update([
+            'name' => $request->name,
+            'key' => strtolower(trim($request->key)),
+            'price_per_kg' => $request->price_per_kg,
+            'points_per_kg' => $request->points_per_kg,
+            'icon' => $icon,
+        ]);
+
+        return redirect()->route('manajer.categories.index')->with('success', 'Kategori sampah berhasil diperbarui.');
+    }
+
+    /**
+     * Delete waste category.
+     */
+    public function destroyCategory($id)
+    {
+        $category = WasteCategory::findOrFail($id);
+        
+        // Check if there are active transactions utilizing this category
+        if ($category->transactions()->count() > 0) {
+            return redirect()->route('manajer.categories.index')->with('error', 'Kategori tidak dapat dihapus karena sudah memiliki riwayat transaksi setoran.');
+        }
+
+        $category->delete();
+        return redirect()->route('manajer.categories.index')->with('success', 'Kategori sampah berhasil dihapus.');
+    }
+
+    /**
+     * Show printable receipt for any transaction (manager view)
+     */
+    public function transactionReceipt($id)
+    {
+        $transaction = Transaction::with(['student', 'wasteCategory', 'operator'])
+            ->findOrFail($id);
+
+        $backUrl = route('manajer.dashboard');
+        return view('shared.receipt', compact('transaction', 'backUrl'));
+    }
+
+    /**
+     * Show detailed Warehouse Stock Inventory page.
+     */
+    public function stokDetail(Request $request)
+    {
+        $search = $request->input('search');
+
+        $categories = WasteCategory::when($search, function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%");
+            })
+            ->get()
+            ->map(function ($category) {
+                // Total Setor
+                $totalSetor = Transaction::where('waste_category_id', $category->id)
+                    ->where('type', 'setor')
+                    ->where('status', 'Berhasil')
+                    ->sum('weight');
+
+                $totalSetorValue = Transaction::where('waste_category_id', $category->id)
+                    ->where('type', 'setor')
+                    ->where('status', 'Berhasil')
+                    ->sum('amount');
+
+                // Total Distributed
+                $totalDistributed = \App\Models\DistributionItem::where('waste_category_id', $category->id)
+                    ->sum('weight');
+
+                $totalDistributedValue = \App\Models\DistributionItem::where('waste_category_id', $category->id)
+                    ->sum('value');
+
+                $category->total_setor = (float)$totalSetor;
+                $category->total_setor_value = (int)$totalSetorValue;
+                $category->total_distributed = (float)$totalDistributed;
+                $category->total_distributed_value = (int)$totalDistributedValue;
+                $category->available_stock = max(0.00, (float)($totalSetor - $totalDistributed));
+                $category->estimated_value = round($category->available_stock * $category->price_per_kg);
+                
+                // Count transaction volume
+                $category->transactions_count = Transaction::where('waste_category_id', $category->id)
+                    ->where('status', 'Berhasil')
+                    ->count();
+
+                return $category;
+            });
+
+        return view('manajer.stok_detail', compact('categories', 'search'));
+    }
+
+    /**
+     * Show detailed stock history and transaction list for a specific waste category.
+     */
+    public function stokCategoryDetail($id, Request $request)
+    {
+        $category = WasteCategory::findOrFail($id);
+
+        // Calculate current stock stats for this specific category
+        $totalSetor = Transaction::where('waste_category_id', $category->id)
+            ->where('type', 'setor')
+            ->where('status', 'Berhasil')
+            ->sum('weight');
+
+        $totalSetorValue = Transaction::where('waste_category_id', $category->id)
+            ->where('type', 'setor')
+            ->where('status', 'Berhasil')
+            ->sum('amount');
+
+        $totalDistributed = \App\Models\DistributionItem::where('waste_category_id', $category->id)
+            ->sum('weight');
+
+        $totalDistributedValue = \App\Models\DistributionItem::where('waste_category_id', $category->id)
+            ->sum('value');
+
+        $availableStock = max(0.00, (float)($totalSetor - $totalDistributed));
+        $estimatedValue = round($availableStock * $category->price_per_kg);
+
+        // Load paginated list of successful deposit transactions (siswa setoran)
+        $deposits = Transaction::where('waste_category_id', $category->id)
+            ->where('type', 'setor')
+            ->with(['student', 'operator'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10, ['*'], 'deposits_page')
+            ->withQueryString();
+
+        // Load paginated list of distributions (barang keluar)
+        $distributions = \App\Models\DistributionItem::where('waste_category_id', $category->id)
+            ->with(['distribution.creator'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10, ['*'], 'dist_page')
+            ->withQueryString();
+
+        return view('manajer.stok_category_detail', compact(
+            'category', 'totalSetor', 'totalSetorValue', 'totalDistributed', 
+            'totalDistributedValue', 'availableStock', 'estimatedValue', 
+            'deposits', 'distributions'
+        ));
+    }
+
+    /**
+     * Show detailed Classroom Performance page.
+     */
+    public function performaKelasDetail(Request $request)
+    {
+        $sort = $request->input('sort', 'points');
+
+        $query = User::where('role', 'siswa')
+            ->selectRaw('class, classroom_id, COUNT(id) as student_count, SUM(balance) as total_balance, SUM(points) as total_points');
+
+        $classes = $query->groupBy('class', 'classroom_id')->get()->map(function($classItem) {
+            // Calculate total weight recycled by students of this class
+            $classItem->total_weight = Transaction::where('type', 'setor')
+                ->where('status', 'Berhasil')
+                ->whereHas('student', function($q) use ($classItem) {
+                    $q->where('class', $classItem->class);
+                })
+                ->sum('weight');
+
+            // Calculate average per student
+            $classItem->avg_balance = $classItem->student_count > 0 ? ($classItem->total_balance / $classItem->student_count) : 0;
+            $classItem->avg_weight = $classItem->student_count > 0 ? ($classItem->total_weight / $classItem->student_count) : 0;
+            
+            // Find most active waste category for this class
+            $topCategory = Transaction::where('type', 'setor')
+                ->where('status', 'Berhasil')
+                ->whereHas('student', function($q) use ($classItem) {
+                    $q->where('class', $classItem->class);
+                })
+                ->selectRaw('waste_category_id, SUM(weight) as total_cat_weight')
+                ->groupBy('waste_category_id')
+                ->orderBy('total_cat_weight', 'desc')
+                ->first();
+
+            $classItem->top_category_name = $topCategory && $topCategory->wasteCategory ? $topCategory->wasteCategory->name : 'N/A';
+
+            return $classItem;
+        });
+
+        // Apply sorting
+        if ($sort === 'weight') {
+            $classes = $classes->sortByDesc('total_weight')->values();
+        } elseif ($sort === 'balance') {
+            $classes = $classes->sortByDesc('total_balance')->values();
+        } elseif ($sort === 'students') {
+            $classes = $classes->sortByDesc('student_count')->values();
+        } else {
+            $classes = $classes->sortByDesc('total_points')->values();
+        }
+
+        return view('manajer.performa_kelas_detail', compact('classes', 'sort'));
+    }
+
+    /**
+     * Show detailed Transaction Logs page with pagination and filters.
+     */
+    public function logTransaksiDetail(Request $request)
+    {
+        $filters = [
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+            'waste_category_id' => $request->input('waste_category_id'),
+            'class' => $request->input('class'),
+            'type' => $request->input('type'),
+            'status' => $request->input('status'),
+            'search' => $request->input('search'),
+        ];
+
+        $query = Transaction::with(['student', 'wasteCategory', 'operator'])
+            ->orderBy('created_at', 'desc');
+
+        // Apply scope filters
+        $query->filter($filters);
+
+        // Text search
+        if ($filters['search']) {
+            $search = $filters['search'];
+            $query->whereHas('student', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nisn', 'like', "%{$search}%");
+            });
+        }
+
+        // Summary stats on filtered query
+        $statsQuery = clone $query;
+        $filteredWeight = $statsQuery->where('type', 'setor')->where('status', 'Berhasil')->sum('weight');
+        
+        $statsQuery2 = clone $query;
+        $filteredSetorAmount = $statsQuery2->where('type', 'setor')->where('status', 'Berhasil')->sum('amount');
+        
+        $statsQuery3 = clone $query;
+        $filteredTarikAmount = $statsQuery3->where('type', 'tarik')->where('status', 'Berhasil')->sum('amount');
+
+        $transactions = $query->paginate(15)->withQueryString();
+
+        $categories = WasteCategory::all();
+        $classes = User::where('role', 'siswa')->whereNotNull('class')->distinct()->pluck('class');
+
+        return view('manajer.log_transaksi_detail', compact(
+            'transactions', 'categories', 'classes', 'filters',
+            'filteredWeight', 'filteredSetorAmount', 'filteredTarikAmount'
+        ));
+    }
+
+    /**
+     * Show detailed Active Students ranking page.
+     */
+    public function siswaTeraktifDetail(Request $request)
+    {
+        $classFilter = $request->input('class');
+        $leagueFilter = $request->input('league');
+        $search = $request->input('search');
+
+        $query = User::where('role', 'siswa');
+
+        if ($classFilter) {
+            $query->where('class', $classFilter);
+        }
+        if ($leagueFilter) {
+            $query->where('league', $leagueFilter);
+        }
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nisn', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query->orderBy('points', 'desc')
+            ->orderBy('weekly_points', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Attach total weight contribution
+        $students->getCollection()->transform(function($student) {
+            $student->total_weight = Transaction::where('user_id', $student->id)
+                ->where('type', 'setor')
+                ->where('status', 'Berhasil')
+                ->sum('weight');
+            return $student;
+        });
+
+        $classes = User::where('role', 'siswa')->whereNotNull('class')->distinct()->pluck('class');
+        $leagues = User::where('role', 'siswa')->whereNotNull('league')->distinct()->pluck('league');
+
+        return view('manajer.siswa_teraktif_detail', compact('students', 'classes', 'leagues', 'classFilter', 'leagueFilter', 'search'));
     }
 }

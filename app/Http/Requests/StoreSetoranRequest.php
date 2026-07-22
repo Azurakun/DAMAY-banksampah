@@ -23,9 +23,23 @@ class StoreSetoranRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'waste_category_id' => ['required', 'exists:waste_categories,id'],
-            'weight' => ['required', 'numeric', 'min:0.1'],
-            'note' => ['nullable', 'string', 'max:255']
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.waste_category_id'=> ['required', 'exists:waste_categories,id'],
+            'items.*.weight'           => ['required', 'numeric', 'min:0.01'],
+            'note'                     => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'items.required'                    => 'Harus ada minimal satu jenis sampah.',
+            'items.min'                         => 'Harus ada minimal satu jenis sampah.',
+            'items.*.waste_category_id.required'=> 'Kategori sampah wajib dipilih.',
+            'items.*.waste_category_id.exists'  => 'Kategori sampah tidak valid.',
+            'items.*.weight.required'           => 'Berat timbangan wajib diisi.',
+            'items.*.weight.numeric'            => 'Berat harus berupa angka.',
+            'items.*.weight.min'                => 'Berat minimal 0.01 kg.',
         ];
     }
 }

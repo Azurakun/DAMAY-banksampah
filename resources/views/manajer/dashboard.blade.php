@@ -52,13 +52,86 @@
         </div>
     </div>
 
+    {{-- Warehouse Stock & Flow Charts --}}
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-20); margin-bottom: var(--s-20); margin-top: var(--s-20);">
+        {{-- Charts Column --}}
+        <div class="card" style="margin-bottom:0; display:flex; flex-direction:column; gap: var(--s-20);">
+            <div class="flex-between">
+                <h2 style="font-size:15px;font-weight:800;color:var(--on-surface);display:flex;align-items:center;gap:var(--s-8);">
+                    <i class="bi bi-graph-up-arrow" style="color:var(--primary);"></i> Arus Inflow vs Outflow (6 Bulan Terakhir)
+                </h2>
+            </div>
+            
+            <div style="display:flex; gap:var(--s-16); width:100%; flex-wrap:wrap;">
+                <div style="flex:1; min-width:180px;">
+                    <h4 style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--on-surface-variant); text-align:center; margin-bottom:8px;">Berat Sampah (Kg)</h4>
+                    <div style="position:relative; height:160px; width:100%;">
+                        <canvas id="weightFlowChart"></canvas>
+                    </div>
+                </div>
+                <div style="flex:1; min-width:180px;">
+                    <h4 style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--on-surface-variant); text-align:center; margin-bottom:8px;">Nilai Uang (Rp)</h4>
+                    <div style="position:relative; height:160px; width:100%;">
+                        <canvas id="valueFlowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Warehouse Stock Overview Column --}}
+        <div class="card" style="margin-bottom:0;">
+            <div class="flex-between" style="margin-bottom:var(--s-12);">
+                <h2 style="font-size:15px;font-weight:800;color:var(--on-surface);display:flex;align-items:center;gap:var(--s-8);">
+                    <i class="bi bi-houses" style="color:var(--primary);"></i> Persediaan Stok Gudang
+                </h2>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <a href="{{ route('manajer.stok') }}" style="font-size:11px; font-weight:700; color:var(--primary); text-decoration:none; display:inline-flex; align-items:center; gap:3px; margin-right:4px;">
+                        Detail <i class="bi bi-chevron-right"></i>
+                    </a>
+                    <a href="{{ route('manajer.distributions.index') }}" class="badge badge-accent" style="text-decoration:none;">Kelola Distribusi</a>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:var(--s-8); max-height:220px; overflow-y:auto;">
+                @foreach($warehouseStock as $stock)
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surface-dim); border-radius:var(--r-md); border:1px solid var(--outline-variant);">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:20px; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; overflow:hidden;">
+                                @if(Str::startsWith($stock->icon, '/uploads/') || Str::startsWith($stock->icon, 'http'))
+                                    <img src="{{ $stock->icon }}" alt="{{ $stock->name }}" style="width: 24px; height: 24px; object-fit: cover; border-radius: 4px;">
+                                @else
+                                    {{ $stock->icon }}
+                                @endif
+                            </span>
+                            <div>
+                                <strong style="color:var(--on-surface); font-size:13.5px;">{{ $stock->name }}</strong>
+                                <div style="font-size:10px; color:var(--on-surface-variant); font-weight:600;">
+                                    Total Masuk: {{ number_format($stock->total_setor, 1, ',', '.') }} kg | Keluar: {{ number_format($stock->total_distributed, 1, ',', '.') }} kg
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:10px; color:var(--on-surface-variant); font-weight:600;">Tersedia</div>
+                            <span style="font-family:var(--font-mono); font-weight:800; color:var(--teal); font-size:14px;">{{ number_format($stock->available_stock, 2, ',', '.') }} kg</span>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
     {{-- Class Performance Table --}}
     <div class="card">
         <div class="flex-between" style="margin-bottom:var(--s-16);">
             <h2 style="font-size:15px;font-weight:800;color:var(--on-surface);display:flex;align-items:center;gap:var(--s-8);">
                 <i class="bi bi-buildings" style="color:var(--primary);"></i> Performa Kelas
             </h2>
-            <span class="badge badge-primary">{{ $classPerformance->count() }} Kelas</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <a href="{{ route('manajer.performaKelas') }}" style="font-size:11px; font-weight:700; color:var(--primary); text-decoration:none; display:inline-flex; align-items:center; gap:3px; margin-right:4px;">
+                    Detail <i class="bi bi-chevron-right"></i>
+                </a>
+                <span class="badge badge-primary">{{ $classPerformance->count() }} Kelas</span>
+            </div>
         </div>
 
         <div class="table-overflow">
@@ -105,7 +178,12 @@
                 <h2 style="font-size:15px;font-weight:800;color:var(--on-surface);display:flex;align-items:center;gap:var(--s-8);">
                     <i class="bi bi-receipt" style="color:var(--primary);"></i> Log Transaksi Terbaru
                 </h2>
-                <span class="badge badge-primary">10 Terakhir</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <a href="{{ route('manajer.logTransaksi') }}" style="font-size:11px; font-weight:700; color:var(--primary); text-decoration:none; display:inline-flex; align-items:center; gap:3px; margin-right:4px;">
+                        Semua <i class="bi bi-chevron-right"></i>
+                    </a>
+                    <span class="badge badge-primary">10 Terakhir</span>
+                </div>
             </div>
 
             <div class="transaction-list">
@@ -142,6 +220,10 @@
                                 {{ $tx->type === 'setor' ? '+' : '−' }} Rp {{ number_format($tx->amount, 0, ',', '.') }}
                             </span>
                             <span class="transaction-status {{ strtolower($tx->status) }}">{{ $tx->status }}</span>
+                            <a href="{{ route('manajer.transaction.receipt', $tx->id) }}"
+                               style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:700; margin-top:2px; display:inline-flex; align-items:center; gap:3px;">
+                                <i class="bi bi-receipt"></i> Struk
+                            </a>
                         </div>
                     </div>
                 @empty
@@ -159,7 +241,12 @@
                 <h2 style="font-size:15px;font-weight:800;color:var(--on-surface);display:flex;align-items:center;gap:var(--s-8);">
                     <i class="bi bi-trophy" style="color:var(--accent);"></i> Top 5 Siswa Teraktif
                 </h2>
-                <span class="badge badge-accent">Nasabah Teraktif</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <a href="{{ route('manajer.siswaTeraktif') }}" style="font-size:11px; font-weight:700; color:var(--accent); text-decoration:none; display:inline-flex; align-items:center; gap:3px; margin-right:4px;">
+                        Semua <i class="bi bi-chevron-right"></i>
+                    </a>
+                    <span class="badge badge-accent">Nasabah Teraktif</span>
+                </div>
             </div>
 
             <div class="leaderboard-list">
@@ -194,4 +281,113 @@
     </div>
 
 </div>
+@endsection
+
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const labels = {!! json_encode($labels) !!};
+        
+        // 1. Weight Flow Chart (Kg)
+        const weightCtx = document.getElementById('weightFlowChart').getContext('2d');
+        new Chart(weightCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Masuk (Setor)',
+                        data: {!! json_encode($inflowWeightData) !!},
+                        borderColor: '#3f7d4a', // Eco green
+                        backgroundColor: 'rgba(63, 125, 74, 0.05)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Keluar (Distribusi)',
+                        data: {!! json_encode($outflowWeightData) !!},
+                        borderColor: '#a63a2e', // Red
+                        backgroundColor: 'rgba(166, 58, 46, 0.05)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 10 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { font: { size: 9 }, color: '#55594E' },
+                        grid: { color: 'rgba(18, 53, 38, 0.04)' }
+                    },
+                    x: {
+                        ticks: { font: { size: 9 }, color: '#55594E' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // 2. Value Flow Chart (Rp)
+        const valueCtx = document.getElementById('valueFlowChart').getContext('2d');
+        new Chart(valueCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Masuk (Setor)',
+                        data: {!! json_encode($inflowValueData) !!},
+                        backgroundColor: 'rgba(63, 125, 74, 0.75)',
+                        borderColor: '#3f7d4a',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Keluar (Distribusi)',
+                        data: {!! json_encode($outflowValueData) !!},
+                        backgroundColor: 'rgba(184, 121, 43, 0.75)', // Gold Stamp
+                        borderColor: '#b8792b',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 10 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: { size: 9 },
+                            color: '#55594E',
+                            callback: function(value) { return 'Rp ' + (value >= 1000 ? (value/1000) + 'k' : value); }
+                        },
+                        grid: { color: 'rgba(18, 53, 38, 0.04)' }
+                    },
+                    x: {
+                        ticks: { font: { size: 9 }, color: '#55594E' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    });
+</script>
 @endsection

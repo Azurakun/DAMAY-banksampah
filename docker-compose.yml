@@ -8,13 +8,13 @@ services:
     container_name: banksampah-app
     restart: unless-stopped
     ports:
-      - "8000:80"      # Serves Web App on http://localhost:8000
+      - "8001:80"      # Serves Web App on http://localhost:8001
       - "8080:8080"    # Serves Laravel Reverb WebSockets on port 8080
     environment:
       - APP_NAME=EcoBank
       - APP_ENV=production
       - APP_DEBUG=false
-      - APP_URL=http://localhost:8000
+      - APP_URL=http://localhost:8001
       - APP_KEY=base64:xQCALf87YsHp8RwkgYMeZlwNqFEwMvDfTruiZuQmnHE=
       
       # Database connection

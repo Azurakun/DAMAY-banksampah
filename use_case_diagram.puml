@@ -1,0 +1,86 @@
+@startuml
+left to right direction
+skinparam packageStyle rect
+skinparam shadowing false
+skinparam monochrome true
+
+actor "Pengunjung (Guest)" as Guest
+actor "Siswa (Nasabah)" as Siswa
+actor "Operator (Staf)" as Operator
+actor "Wali Kelas" as WaliKelas
+
+rectangle "EcoBank App (System Boundary)" {
+    usecase "UC-01: Login" as UC_Login
+    usecase "UC-02: Registrasi Mandiri Siswa" as UC_RegSiswa
+    usecase "UC-03: Lupa/Reset Password" as UC_Forgot
+    usecase "UC-04: Kelola Profil & Avatar" as UC_Profile
+    usecase "UC-05: Logout" as UC_Logout
+
+    usecase "UC-06: Lihat Dashboard Tabungan" as UC_DashSiswa
+    usecase "UC-07: Lihat Riwayat Transaksi" as UC_HistSiswa
+    usecase "UC-08: Lihat Leaderboard Siswa" as UC_Leaderboard
+    usecase "UC-09: Ajukan Penarikan Dana" as UC_ReqWithdraw
+
+    usecase "UC-10: Cari Siswa (Live Search)" as UC_SearchSiswa
+    usecase "UC-11: Input Setoran Sampah" as UC_InputSetor
+    usecase "UC-12: Konfirmasi Struk Digital" as UC_ConfirmReceipt
+    usecase "UC-13: Kirim Struk via WhatsApp" as UC_WAStruk
+    usecase "UC-14: Verifikasi Fisik Penarikan" as UC_VerifyCash
+    usecase "UC-15: Registrasi Siswa Manual & CSV" as UC_RegBulk
+
+    usecase "UC-16: Lihat Dashboard Kelas" as UC_DashWK
+    usecase "UC-17: Bulk Approval Pendaftaran" as UC_ApproveReg
+    usecase "UC-18: Lihat Rincian Tabungan Siswa" as UC_DetailSiswa
+
+    usecase "UC-19: Lihat Statistik Global & Cashflow" as UC_DashMan
+    usecase "UC-20: Kelola Akun Staf (CRUD)" as UC_ManageStaff
+    usecase "UC-21: Kelola Kelas & Wali Kelas" as UC_ManageClass
+    usecase "UC-22: Roll-Over Tahun Ajaran Baru" as UC_RollOver
+    usecase "UC-23: Kelola Kategori Sampah & Harga" as UC_ManageWaste
+    usecase "UC-24: Catat Distribusi Sampah" as UC_ManageDist
+    usecase "UC-25: Otorisasi Final Penarikan" as UC_ApproveFinal
+    usecase "UC-26: Ekspor Laporan Excel/PDF" as UC_ExportReports
+    usecase "UC-27: Lihat Log Audit Keamanan" as UC_ViewAudit
+}
+
+actor "Manajer (Admin)" as Manajer
+
+Guest -- UC_Login
+Guest -- UC_RegSiswa
+Guest -- UC_Forgot
+
+Siswa -- UC_Logout
+Siswa -- UC_Profile
+Siswa -- UC_DashSiswa
+Siswa -- UC_HistSiswa
+Siswa -- UC_Leaderboard
+Siswa -- UC_ReqWithdraw
+
+Operator -- UC_Logout
+Operator -- UC_Profile
+Operator -- UC_SearchSiswa
+Operator -- UC_InputSetor
+Operator -- UC_ConfirmReceipt
+Operator -- UC_WAStruk
+Operator -- UC_VerifyCash
+Operator -- UC_RegBulk
+
+WaliKelas -- UC_Logout
+WaliKelas -- UC_Profile
+WaliKelas -- UC_DashWK
+WaliKelas -- UC_ApproveReg
+WaliKelas -- UC_DetailSiswa
+
+UC_Logout -- Manajer
+UC_Profile -- Manajer
+UC_DashMan -- Manajer
+UC_ManageStaff -- Manajer
+UC_ManageClass -- Manajer
+UC_RollOver -- Manajer
+UC_ManageWaste -- Manajer
+UC_ManageDist -- Manajer
+UC_ApproveFinal -- Manajer
+UC_ExportReports -- Manajer
+UC_ViewAudit -- Manajer
+
+@endum

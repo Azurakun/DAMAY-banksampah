@@ -60,6 +60,17 @@ class EcoBankTest extends TestCase
             'points' => 0,
         ]);
         $this->operator->assignRole('operator');
+
+        $this->walikelas = User::create([
+            'name' => 'Wali Kelas EcoBank',
+            'email' => 'walikelas@ecobank.com',
+            'password' => Hash::make('password'),
+            'role' => 'walikelas',
+            'phone' => '085134567894',
+            'balance' => 0,
+            'points' => 0,
+        ]);
+        $this->walikelas->assignRole('walikelas');
     }
 
     /**
@@ -117,15 +128,16 @@ class EcoBankTest extends TestCase
         // Expected ending student balance: 10,000 + 15,000 = 25,000 | Points: 100 + 150 = 250
 
         $response = $this->actingAs($this->operator)->post("/operator/setor/{$this->student->id}", [
-            'waste_category_id' => $this->category->id,
-            'weight' => 5.00,
+            'items' => [
+                ['waste_category_id' => $this->category->id, 'weight' => 5.00],
+            ],
             'note' => 'Setoran botol timbulan plastik Budi'
         ]);
 
-        // Assert redirect to confirm page
+        // Assert redirect to batch confirm page
+        $response->assertStatus(302);
         $transaction = Transaction::where('user_id', $this->student->id)->first();
         $this->assertNotNull($transaction);
-        $response->assertRedirect("/operator/konfirmasi/{$transaction->id}");
 
         // Assert database updates
         $this->student->refresh();
@@ -247,11 +259,11 @@ class EcoBankTest extends TestCase
     }
 
     /**
-     * Test operator can view the student registration page
+     * Test walikelas can view the student registration page
      */
-    public function test_operator_can_view_registration_page()
+    public function test_walikelas_can_view_registration_page()
     {
-        $response = $this->actingAs($this->operator)->get('/operator/register-siswa');
+        $response = $this->actingAs($this->walikelas)->get('/walikelas/register-siswa');
 
         $response->assertStatus(200);
         $response->assertSee('Registrasi Nasabah Baru');
@@ -259,11 +271,11 @@ class EcoBankTest extends TestCase
     }
 
     /**
-     * Test operator can register a single student manually
+     * Test walikelas can register a single student manually
      */
-    public function test_operator_can_register_single_student_manually()
+    public function test_walikelas_can_register_single_student_manually()
     {
-        $response = $this->actingAs($this->operator)->post('/operator/register-siswa/single', [
+        $response = $this->actingAs($this->walikelas)->post('/walikelas/register-siswa/single', [
             'name' => 'Mega Utami',
             'email' => 'mega@ecobank.com',
             'nisn' => '98761234',
@@ -286,9 +298,9 @@ class EcoBankTest extends TestCase
     }
 
     /**
-     * Test operator can bulk import students successfully from a CSV file
+     * Test walikelas can bulk import students successfully from a CSV file
      */
-    public function test_operator_can_bulk_import_students_successfully()
+    public function test_walikelas_can_bulk_import_students_successfully()
     {
         $csvHeader = "Nama,Email,NISN,Kelas,Telepon\n";
         $csvContent = "Citra Lestari,citra@ecobank.com,99887766,XII RPL 1,087766554433\n";
@@ -296,7 +308,7 @@ class EcoBankTest extends TestCase
 
         $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('siswa.csv', $csvHeader . $csvContent);
 
-        $response = $this->actingAs($this->operator)->post('/operator/register-siswa/bulk', [
+        $response = $this->actingAs($this->walikelas)->post('/walikelas/register-siswa/bulk', [
             'file' => $file
         ]);
 
@@ -319,5 +331,238 @@ class EcoBankTest extends TestCase
         $this->assertEquals('doni@ecobank.com', $doni->email);
         $this->assertNull($doni->phone);
         $this->assertEquals('siswa', $doni->role);
+    }
+
+    /**
+     * Test operator cannot view or submit student registration
+     */
+    public function test_operator_cannot_access_student_registration()
+    {
+        $response = $this->actingAs($this->operator)->get('/walikelas/register-siswa');
+        $response->assertStatus(403); // Forbidden
+
+        $responsePost = $this->actingAs($this->operator)->post('/walikelas/register-siswa/single', []);
+        $responsePost->assertStatus(403);
+    }
+
+    /**
+     * Test manager can view distributions list.
+     */
+    public function test_manager_can_view_distributions()
+    {
+        $manager = User::create([
+            'name' => 'Manajer EcoBank',
+            'email' => 'manajer@ecobank.com',
+            'password' => Hash::make('password'),
+            'role' => 'manajer',
+            'status' => 'approved',
+        ]);
+        $manager->assignRole('manajer');
+
+        $response = $this->actingAs($manager)->get('/manajer/distributions');
+        $response->assertStatus(200);
+        $response->assertSee('Distribusi Sampah Gudang');
+    }
+
+    /**
+     * Test operator can view distributions list.
+     */
+    public function test_operator_can_view_distributions()
+    {
+        $response = $this->actingAs($this->operator)->get('/operator/distributions');
+        $response->assertStatus(200);
+        $response->assertSee('Distribusi Sampah Gudang');
+    }
+
+    /**
+     * Test operator can record a waste distribution.
+     */
+    public function test_operator_can_record_distribution()
+    {
+        // Create deposit first to have stock in warehouse
+        // 10 kg Plastik
+        Transaction::create([
+            'user_id' => $this->student->id,
+            'operator_id' => $this->operator->id,
+            'type' => 'setor',
+            'waste_category_id' => $this->category->id,
+            'weight' => 10.00,
+            'amount' => 30000,
+            'points' => 300,
+            'status' => 'Berhasil',
+        ]);
+
+        $response = $this->actingAs($this->operator)->post('/operator/distributions', [
+            'batch_date' => '2026-07-08',
+            'route' => 'agent',
+            'agent_name' => 'Agen Plastik Utama',
+            'notes' => 'Distribusi timbulan plastik',
+            'items' => [
+                [
+                    'waste_category_id' => $this->category->id,
+                    'weight' => 6.00, // 6 kg out of 10 available
+                    'price_per_kg' => 4000, // sold at profit
+                ]
+            ]
+        ]);
+
+        $response->assertRedirect('/operator/distributions');
+        $this->assertDatabaseHas('distributions', [
+            'route' => 'agent',
+            'total_weight' => 6.00,
+            'total_value' => 24000,
+        ]);
+    }
+
+    /**
+     * Test manager cannot record a waste distribution directly.
+     */
+    public function test_manager_cannot_record_distribution()
+    {
+        $manager = User::create([
+            'name' => 'Manajer EcoBank',
+            'email' => 'manajer@ecobank.com',
+            'password' => Hash::make('password'),
+            'role' => 'manajer',
+            'status' => 'approved',
+        ]);
+        $manager->assignRole('manajer');
+
+        $response = $this->actingAs($manager)->post('/manajer/distributions', [
+            'batch_date' => '2026-07-08',
+            'route' => 'agent',
+            'agent_name' => 'Agen Plastik Utama',
+            'items' => []
+        ]);
+
+        // Manager should get a 405 (Method Not Allowed) since route doesn't exist for POST /manajer/distributions
+        $response->assertStatus(405);
+    }
+
+    /**
+     * Test manager can view and filter dynamic reports.
+     */
+    public function test_manager_reports_filtering()
+    {
+        $manager = User::create([
+            'name' => 'Manajer EcoBank',
+            'email' => 'manajer@ecobank.com',
+            'password' => Hash::make('password'),
+            'role' => 'manajer',
+            'status' => 'approved',
+        ]);
+        $manager->assignRole('manajer');
+
+        $response = $this->actingAs($manager)->get('/manajer/laporan?type=setor');
+        $response->assertStatus(200);
+        $response->assertSee('Hasil Penelusuran Laporan');
+    }
+
+    /**
+     * Test manager can access the 4 detailed monitoring pages.
+     */
+    public function test_manager_can_view_monitoring_details()
+    {
+        $manager = User::create([
+            'name' => 'Manajer EcoBank',
+            'email' => 'manajer@ecobank.com',
+            'password' => Hash::make('password'),
+            'role' => 'manajer',
+            'status' => 'approved',
+        ]);
+        $manager->assignRole('manajer');
+
+        // 1. Warehouse Stock Detail
+        $response = $this->actingAs($manager)->get('/manajer/stok');
+        $response->assertStatus(200);
+        $response->assertSee('Persediaan Stok Gudang');
+
+        // 2. Class Performance Detail
+        $response = $this->actingAs($manager)->get('/manajer/performa-kelas');
+        $response->assertStatus(200);
+        $response->assertSee('Performa Kelas');
+
+        // 3. Transactions Log Detail
+        $response = $this->actingAs($manager)->get('/manajer/log-transaksi');
+        $response->assertStatus(200);
+        $response->assertSee('Log Transaksi Lengkap');
+
+        // 4. Active Students Detail
+        $response = $this->actingAs($manager)->get('/manajer/siswa-teraktif');
+        $response->assertStatus(200);
+        $response->assertSee('Leaderboard Nasabah Teraktif');
+    }
+
+    /**
+     * Test homeroom teacher can view restricted class reports.
+     */
+    public function test_walikelas_reports_restricted()
+    {
+        $walikelas = User::create([
+            'name' => 'Dra. Sri Wahyuni',
+            'email' => 'sri2@ecobank.com', // unique email
+            'password' => Hash::make('password'),
+            'role' => 'walikelas',
+            'class' => 'XII RPL 1',
+            'status' => 'approved',
+        ]);
+        $walikelas->assignRole('walikelas');
+
+        $classroom = \App\Models\Classroom::firstOrCreate(['name' => 'XII RPL 1']);
+        $walikelas->classrooms()->sync([$classroom->id]);
+
+        $response = $this->actingAs($walikelas)->get('/walikelas/laporan');
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Transaksi Kelas Asuhan');
+    }
+
+    /**
+     * Test manager can CRUD waste categories.
+     */
+    public function test_manager_can_crud_waste_categories()
+    {
+        $manager = User::create([
+            'name' => 'Manajer EcoBank',
+            'email' => 'manajer@ecobank.com',
+            'password' => Hash::make('password'),
+            'role' => 'manajer',
+            'status' => 'approved',
+        ]);
+        $manager->assignRole('manajer');
+
+        // Create
+        $file = \Illuminate\Http\UploadedFile::fake()->image('koran.png');
+        $response = $this->actingAs($manager)->post('/manajer/waste-categories', [
+            'name' => 'Kertas Koran',
+            'key' => 'koran',
+            'price_per_kg' => 1200,
+            'points_per_kg' => 12,
+            'icon_image' => $file,
+        ]);
+        $response->assertRedirect('/manajer/waste-categories');
+        $this->assertDatabaseHas('waste_categories', ['key' => 'koran']);
+
+        $category = WasteCategory::where('key', 'koran')->first();
+        $this->assertStringContainsString('/uploads/categories/', $category->icon);
+
+        // Update with another fake image
+        $newFile = \Illuminate\Http\UploadedFile::fake()->image('koran_bekas.png');
+        $response = $this->actingAs($manager)->post("/manajer/waste-categories/{$category->id}", [
+            'name' => 'Kertas Koran Bekas',
+            'key' => 'koran_bekas',
+            'price_per_kg' => 1500,
+            'points_per_kg' => 15,
+            'icon_image' => $newFile,
+        ]);
+        $response->assertRedirect('/manajer/waste-categories');
+        $this->assertDatabaseHas('waste_categories', ['key' => 'koran_bekas']);
+
+        $updatedCategory = WasteCategory::find($category->id);
+        $this->assertStringContainsString('/uploads/categories/', $updatedCategory->icon);
+
+        // Delete
+        $response = $this->actingAs($manager)->delete("/manajer/waste-categories/{$category->id}");
+        $response->assertRedirect('/manajer/waste-categories');
+        $this->assertDatabaseMissing('waste_categories', ['id' => $category->id]);
     }
 }

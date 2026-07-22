@@ -4,8 +4,8 @@
 @section('content')
 <div class="animate-fade-in">
 
-    <a href="{{ route('operator.dashboard') }}" class="back-link">
-        <i class="bi bi-arrow-left"></i> Dasbor
+    <a href="{{ route('walikelas.dashboard') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> Portal Wali Kelas
     </a>
 
     <div class="page-header">
@@ -50,7 +50,7 @@
                 <i class="bi bi-person-vcard"></i> Formulir Registrasi Manual
             </h3>
 
-            <form action="{{ route('operator.students.register.single') }}" method="POST">
+            <form action="{{ route('walikelas.students.register.single') }}" method="POST">
                 @csrf
 
                 <div class="form-group">
@@ -133,7 +133,7 @@
                 </a>
             </div>
 
-            <form action="{{ route('operator.students.register.bulk') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('walikelas.students.register.bulk') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
                 <div class="form-group">

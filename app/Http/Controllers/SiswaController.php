@@ -74,6 +74,20 @@ class SiswaController extends Controller
     }
 
     /**
+     * Show printable receipt for a single transaction (student's own only)
+     */
+    public function transactionReceipt($id)
+    {
+        $user = Auth::user();
+        $transaction = Transaction::with(['student', 'wasteCategory', 'operator'])
+            ->where('user_id', $user->id)  // Enforce ownership
+            ->findOrFail($id);
+
+        $backUrl = route('siswa.history');
+        return view('shared.receipt', compact('transaction', 'backUrl'));
+    }
+
+    /**
      * Display gamification leaderboard ranking
      */
     public function leaderboard()

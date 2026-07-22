@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoBank App — Ubuntu Server & Cloudflare Deployment Guide</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-body: #0a0f1d;
+            --bg-card: #111827;
+            --bg-card-hover: #1f2937;
+            --bg-sidebar: #0d1322;
+            --bg-code: #050811;
+            --border-color: #1f293d;
+            --border-highlight: #10b981;
+            
+            --primary: #10b981;
+            --primary-hover: #059669;
+            --primary-glow: rgba(16, 185, 129, 0.18);
+            
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-dim: #6b7280;
+            
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-heading: 'Outfit', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+            
+            --sidebar-width: 280px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-body);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* Sidebar Navigation */
+        aside.sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            overflow-y: auto;
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #10b981, #047857);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-family: var(--font-heading);
+            color: #fff;
+            font-size: 1.2rem;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .brand-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            margin: 1.25rem 0.5rem 0.4rem 0.5rem;
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.85rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item a:hover {
+            color: #fff;
+            background-color: var(--bg-card-hover);
+        }
+
+        .nav-item a.active {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), transparent);
+            border-left: 3px solid var(--primary);
+            font-weight: 600;
+        }
+
+        .nav-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.06);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .nav-item a.active .nav-number {
+            background-color: var(--primary);
+            color: #000;
+            font-weight: 700;
+        }
+
+        /* Main Content */
+        main.content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 2.5rem 3rem;
+            max-width: 1200px;
+        }
+
+        /* Header Hero */
+        .hero {
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(13, 19, 34, 0.95) 100%),
+                        radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 40%);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--primary);
+            padding: 0.35rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .badge-status .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .hero h1 {
+            font-family: var(--font-heading);
+            font-size: 2.3rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #ffffff 30%, #a7f3d0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            max-width: 850px;
+        }
+
+        /* Spec Highlights Grid */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-top: 2rem;
+        }
+
+        .spec-card {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+        }
+
+        .spec-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .spec-value {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            color: var(--primary);
+            font-weight: 600;
+            margin-top: 0.35rem;
+            word-break: break-all;
+        }
+
+        /* Section Styling */
+        section.step-section {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.25rem;
+            margin-bottom: 2.5rem;
+            scroll-margin-top: 2rem;
+            transition: border-color 0.3s ease;
+        }
+
+        section.step-section:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .step-tag {
+            background: linear-gradient(135deg, var(--primary), #047857);
+            color: #000;
+            font-weight: 800;
+            font-family: var(--font-heading);
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .section-header h2 {
+            font-family: var(--font-heading);
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .section-description {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Alert / Callout Boxes */
+        .callout {
+            border-radius: 12px;
+            padding: 1.1rem 1.3rem;
+            margin: 1.25rem 0;
+            font-size: 0.92rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .callout-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 0.1rem;
+        }
+
+        .callout-info {
+            background-color: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            color: #93c5fd;
+        }
+        .callout-info strong { color: #bfdbfe; }
+
+        .callout-warning {
+            background-color: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fcd34d;
+        }
+        .callout-warning strong { color: #fde68a; }
+
+        .callout-success {
+            background-color: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+        }
+        .callout-success strong { color: #a7f3d0; }
+
+        .callout-tip {
+            background-color: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            color: #c4b5fd;
+        }
+
+        /* Code Blocks & Terminal Snippets */
+        .code-container {
+            background-color: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .code-header {
+            background-color: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.6rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-filename {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dot-group {
+            display: flex;
+            gap: 6px;
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .dot-red { background-color: #ff5f56; }
+        .dot-yellow { background-color: #ffbd2e; }
+        .dot-green { background-color: #27c93f; }
+
+        .copy-btn {
+            background-color: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+        }
+
+        pre {
+            padding: 1.2rem 1.25rem;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: #e5e7eb;
+        }
+
+        code {
+            font-family: var(--font-mono);
+        }
+
+        /* Inline Code */
+        p code, li code, td code {
+            background-color: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #a7f3d0;
+            padding: 0.15rem 0.45rem;
+            border-radius: 5px;
+            font-size: 0.84em;
+        }
+
+        /* Code Highlighting Syntaxes */
+        .cmd-prompt { color: var(--primary); font-weight: 600; user-select: none; }
+        .cmd-comment { color: #6b7280; font-style: italic; }
+        .cmd-keyword { color: #f472b6; }
+        .cmd-string { color: #a7f3d0; }
+        .cmd-var { color: #93c5fd; }
+
+        /* Flow Diagram Container */
+        .diagram-box {
+            background-color: #090e1a;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.75rem;
+            margin: 1.5rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .flow-node-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .flow-node {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            min-width: 180px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .flow-node.highlight {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .flow-node-title {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: #fff;
+            margin-bottom: 0.2rem;
+        }
+
+        .flow-node-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .flow-arrow {
+            color: var(--primary);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        /* Tabbed Interface */
+        .tab-container {
+            margin: 1.5rem 0;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.25rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: #fff;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Checklist Interactive */
+        .checklist {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .checklist-item:hover {
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            margin-top: 0.15rem;
+        }
+
+        .checklist-text {
+            font-size: 0.92rem;
+            color: var(--text-main);
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.25rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.85rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: #fff;
+            font-weight: 600;
+            font-family: var(--font-heading);
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--primary);
+            color: #000;
+            font-weight: 700;
+            font-size: 0.88rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 1000;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 992px) {
+            aside.sidebar {
+                display: none;
+            }
+            main.content {
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">E</div>
+            <div>
+                <div class="brand-title">EcoBank App</div>
+                <div class="brand-subtitle">Deployment Playbook</div>
+            </div>
+        </div>
+
+        <div class="nav-section-title">Overview</div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="#overview" class="active"><span class="nav-number">⚡</span> Overview & Specs</a></li>
+            <li class="nav-item"><a href="#architecture"><span class="nav-number">🗺️</span> Architecture Diagram</a></li>
+        </ul>
+
+        <div class="nav-section-title">Execution Steps</div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="#step1"><span class="nav-number">1</span> Server Preparation</a></li>
+            <li class="nav-item"><a href="#step2"><span class="nav-number">2</span> Project Directory & Code</a></li>
+            <li class="nav-item"><a href="#step3"><span class="nav-number">3</span> Environment (.env) Setup</a></li>
+            <li class="nav-item"><a href="#step4"><span class="nav-number">4</span> Docker Deployment</a></li>
+            <li class="nav-item"><a href="#step5"><span class="nav-number">5</span> Cloudflare & SSL DNS</a></li>
+            <li class="nav-item"><a href="#step6"><span class="nav-number">6</span> Laravel Reverb WebSockets</a></li>
+        </ul>
+
+        <div class="nav-section-title">Post-Deployment</div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="#maintenance"><span class="nav-number">💾</span> SQLite Auto-Backups</a></li>
+            <li class="nav-item"><a href="#checklist"><span class="nav-number">✅</span> Launch Checklist</a></li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+
+        <!-- Hero Header -->
+        <header class="hero" id="overview">
+            <div class="badge-status">
+                <span class="pulse-dot"></span> Tailored Production Guide
+            </div>
+            <h1>EcoBank App Production Deployment</h1>
+            <p>Complete step-by-step instructions to deploy your Laravel 11 Bank Sampah application with Docker, SQLite persistence, Reverb WebSockets, and Cloudflare DNS SSL proxy on your Ubuntu server.</p>
+
+            <div class="specs-grid">
+                <div class="spec-card">
+                    <div class="spec-label">Domain Name</div>
+                    <div class="spec-value">ecobank.my.id</div>
+                </div>
+                <div class="spec-card">
+                    <div class="spec-label">Ubuntu Server IP</div>
+                    <div class="spec-value">192.168.1.10</div>
+                </div>
+                <div class="spec-card">
+                    <div class="spec-label">SSH User</div>
+                    <div class="spec-value">azuranyan</div>
+                </div>
+                <div class="spec-card">
+                    <div class="spec-label">Target Directory</div>
+                    <div class="spec-value">/home/azuranyan/hosted_project</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Architecture Section -->
+        <section class="step-section" id="architecture">
+            <div class="section-header">
+                <div class="step-tag">🗺️</div>
+                <h2>Deployment Architecture Diagram</h2>
+            </div>
+            <p class="section-description">Here is how traffic flows securely from end-users to your local Ubuntu server container environment:</p>
+
+            <div class="diagram-box">
+                <div class="flow-node-group">
+                    <div class="flow-node">
+                        <div class="flow-node-title">🌐 User Browser</div>
+                        <div class="flow-node-sub">HTTPS / WSS</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-node highlight">
+                        <div class="flow-node-title">🛡️ Cloudflare DNS</div>
+                        <div class="flow-node-sub">ecobank.my.id (SSL)</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-node">
+                        <div class="flow-node-title">🖥️ Ubuntu Server</div>
+                        <div class="flow-node-sub">192.168.1.10</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-node highlight">
+                        <div class="flow-node-title">🐳 Docker Container</div>
+                        <div class="flow-node-sub">banksampah-app</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-icon">💡</div>
+                <div>
+                    <strong>Note regarding local IP (192.168.1.10):</strong> Since <code>192.168.1.10</code> is a local private network address, this guide covers both <strong>Cloudflare Tunnel (cloudflared)</strong> (Recommended — zero router configuration needed) and standard <strong>Public IP & Router Port Forwarding</strong>.
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 1: Server Prep -->
+        <section class="step-section" id="step1">
+            <div class="section-header">
+                <div class="step-tag">1</div>
+                <h2>Preparing Your Ubuntu Server</h2>
+            </div>
+            <p class="section-description">Connect to your Ubuntu server via SSH and install Docker Engine, Docker Compose, and configure the firewall.</p>
+
+            <h3>1.1 Connect via SSH</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="dot-group"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+                    <span class="code-filename">Terminal (Local Computer)</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Connect to your server</span>
+ssh azuranyan@192.168.1.10</code></pre>
+            </div>
+
+            <h3>1.2 Update Ubuntu & Install Docker</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="dot-group"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Update system packages</span>
+sudo apt update && sudo apt upgrade -y
+
+<span class="cmd-prompt"># Install prerequisites</span>
+sudo apt install -y curl ca-certificates gnupg lsb-release git ufw
+
+<span class="cmd-prompt"># Install Official Docker & Docker Compose Plugin</span>
+sudo curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+<span class="cmd-prompt"># Add your user 'azuranyan' to the docker group (avoids needing sudo for docker commands)</span>
+sudo usermod -aG docker azuranyan
+
+<span class="cmd-prompt"># Activate docker group permissions immediately</span>
+newgrp docker</code></pre>
+            </div>
+
+            <h3>1.3 Configure UFW Firewall</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="dot-group"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Allow essential ports through UFW firewall</span>
+sudo ufw allow 22/tcp     <span class="cmd-comment"># SSH</span>
+sudo ufw allow 80/tcp     <span class="cmd-comment"># HTTP</span>
+sudo ufw allow 443/tcp    <span class="cmd-comment"># HTTPS</span>
+sudo ufw allow 8001/tcp   <span class="cmd-comment"># EcoBank HTTP Port</span>
+sudo ufw allow 8080/tcp   <span class="cmd-comment"># Reverb WebSocket Port</span>
+
+<span class="cmd-prompt"># Enable Firewall</span>
+sudo ufw --force enable
+sudo ufw status verbose</code></pre>
+            </div>
+        </section>
+
+        <!-- STEP 2: Project Setup -->
+        <section class="step-section" id="step2">
+            <div class="section-header">
+                <div class="step-tag">2</div>
+                <h2>Creating Directory & Uploading Code</h2>
+            </div>
+            <p class="section-description">Create the target project directory at <code>/home/azuranyan/hosted_project</code> and transfer your application source files.</p>
+
+            <h3>2.1 Create Directory Structure</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="dot-group"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Create target folder</span>
+mkdir -p /home/azuranyan/hosted_project
+
+<span class="cmd-prompt"># Grant ownership to user 'azuranyan'</span>
+sudo chown -R azuranyan:azuranyan /home/azuranyan/hosted_project
+
+<span class="cmd-prompt"># Navigate into directory</span>
+cd /home/azuranyan/hosted_project</code></pre>
+            </div>
+
+            <h3>2.2 Clone / Transfer Code</h3>
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab(event, 'tab-git')">Method A: Git Clone (Recommended)</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'tab-rsync')">Method B: SCP / Rsync Upload</button>
+                </div>
+
+                <div id="tab-git" class="tab-content active">
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-filename">Ubuntu Terminal</span>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                        <pre><code><span class="cmd-prompt"># Clone repository into current folder</span>
+git clone &lt;YOUR_GIT_REPO_URL&gt; .
+
+<span class="cmd-prompt"># Example:</span>
+<span class="cmd-comment"># git clone https://github.com/azuranyan/bank-sampah-app.git .</span></code></pre>
+                    </div>
+                </div>
+
+                <div id="tab-rsync" class="tab-content">
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-filename">Local Machine Terminal</span>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                        <pre><code><span class="cmd-prompt"># Upload project files from local computer to Ubuntu server</span>
+rsync -avz --exclude='vendor' --exclude='node_modules' --exclude='.git' ./ azuranyan@192.168.1.10:/home/azuranyan/hosted_project/</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 3: Environment Setup -->
+        <section class="step-section" id="step3">
+            <div class="section-header">
+                <div class="step-tag">3</div>
+                <h2>Production Environment (.env) Setup</h2>
+            </div>
+            <p class="section-description">Create the production <code>.env</code> file configured specifically for <strong>ecobank.my.id</strong>, SQLite, and Reverb WebSockets.</p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="dot-group"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+                    <span class="code-filename">/home/azuranyan/hosted_project/.env</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>APP_NAME=EcoBank
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:xQCALf87YsHp8RwkgYMeZlwNqFEwMvDfTruiZuQmnHE=
+APP_URL=https://ecobank.my.id
+
+APP_LOCALE=id
+APP_FALLBACK_LOCALE=en
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_LEVEL=error
+
+# SQLite Database Persistence
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/html/database/database.sqlite
+
+# Optimized Production Drivers
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+BROADCAST_CONNECTION=reverb
+
+# Laravel Reverb (WebSocket Server Config)
+REVERB_APP_ID=856535
+REVERB_APP_KEY=a5d7e6wrtwismkjqn5gn
+REVERB_APP_SECRET=rb97eg7uumei0zzwhrpi
+REVERB_HOST=ecobank.my.id
+REVERB_PORT=443
+REVERB_SCHEME=https
+
+# Vite Frontend WebSocket Credentials
+VITE_REVERB_APP_KEY=a5d7e6wrtwismkjqn5gn
+VITE_REVERB_HOST=ecobank.my.id
+VITE_REVERB_PORT=443
+VITE_REVERB_SCHEME=https</code></pre>
+            </div>
+        </section>
+
+        <!-- STEP 4: Docker Deployment -->
+        <section class="step-section" id="step4">
+            <div class="section-header">
+                <div class="step-tag">4</div>
+                <h2>Build & Launch Docker Containers</h2>
+            </div>
+            <p class="section-description">Build the multi-stage image (Node Vite compilation + PHP 8.4 FPM + Nginx + Supervisord) and start your application.</p>
+
+            <h3>4.1 Verify docker-compose.yml</h3>
+            <p>Ensure your <code>docker-compose.yml</code> file looks like this:</p>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">docker-compose.yml</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: banksampah-app
+    restart: unless-stopped
+    ports:
+      - "8001:80"      # Web App Port
+      - "8080:8080"    # Laravel Reverb WebSockets Port
+    environment:
+      - APP_NAME=EcoBank
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=https://ecobank.my.id
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/html/database/database.sqlite
+      - SESSION_DRIVER=database
+      - CACHE_STORE=database
+      - QUEUE_CONNECTION=database
+      - REVERB_APP_ID=856535
+      - REVERB_APP_KEY=a5d7e6wrtwismkjqn5gn
+      - REVERB_APP_SECRET=rb97eg7uumei0zzwhrpi
+      - REVERB_HOST=0.0.0.0
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
+    volumes:
+      - ./database:/var/www/html/database
+      - app-storage:/var/www/html/storage/app
+
+volumes:
+  app-storage:</code></pre>
+            </div>
+
+            <h3>4.2 Build and Run Container</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Create database folder on host to ensure proper SQLite persistence</span>
+mkdir -p ./database
+touch ./database/database.sqlite
+chmod -R 777 ./database
+
+<span class="cmd-prompt"># Build and start container in background</span>
+docker compose up -d --build
+
+<span class="cmd-prompt"># Check container status</span>
+docker compose ps
+
+<span class="cmd-prompt"># Check real-time logs</span>
+docker compose logs -f app</code></pre>
+            </div>
+
+            <h3>4.3 Run Migrations & Storage Link inside Container</h3>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Execute database migrations inside running container</span>
+docker exec -it banksampah-app php artisan migrate --force
+
+<span class="cmd-prompt"># Create storage symlink</span>
+docker exec -it banksampah-app php artisan storage:link --force
+
+<span class="cmd-prompt"># Cache configuration & routes for maximum production speed</span>
+docker exec -it banksampah-app php artisan config:cache
+docker exec -it banksampah-app php artisan route:cache
+docker exec -it banksampah-app php artisan view:cache</code></pre>
+            </div>
+        </section>
+
+        <!-- STEP 5: Cloudflare DNS & SSL -->
+        <section class="step-section" id="step5">
+            <div class="section-header">
+                <div class="step-tag">5</div>
+                <h2>Cloudflare DNS & SSL Setup (ecobank.my.id)</h2>
+            </div>
+            <p class="section-description">Connect your purchased domain <strong>ecobank.my.id</strong> to your Ubuntu server using Cloudflare.</p>
+
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab(event, 'tab-cf-tunnel')">Option A: Cloudflare Tunnel (Recommended for LAN 192.168.1.10)</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'tab-cf-direct')">Option B: Direct Public IP & Router Port Forwarding</button>
+                </div>
+
+                <!-- OPTION A: CLOUDFLARE TUNNEL -->
+                <div id="tab-cf-tunnel" class="tab-content active">
+                    <div class="callout callout-success">
+                        <div class="callout-icon">🚀</div>
+                        <div>
+                            <strong>Why Cloudflare Tunnel?</strong> It securely connects your local server (192.168.1.10) directly to Cloudflare edge network with <strong>zero open ports</strong> on your router and automatic SSL certificates!
+                        </div>
+                    </div>
+
+                    <h3>Step-by-Step Cloudflare Tunnel Setup:</h3>
+                    <ol style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+                        <li>Log in to <a href="https://dash.cloudflare.com" target="_blank" style="color: var(--primary);">Cloudflare Dashboard</a> and add domain <code>ecobank.my.id</code>. Update your domain registrar's Nameservers to Cloudflare.</li>
+                        <li>Go to <strong>Zero Trust</strong> ➔ <strong>Networks</strong> ➔ <strong>Tunnels</strong> ➔ Click <strong>Create a Tunnel</strong>.</li>
+                        <li>Select <strong>Cloudflared</strong> and name it <code>ecobank-ubuntu</code>.</li>
+                        <li>Copy the Ubuntu installation command provided by Cloudflare:</li>
+                    </ol>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-filename">Ubuntu Terminal</span>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                        <pre><code><span class="cmd-prompt"># Install cloudflared service on Ubuntu</span>
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+
+<span class="cmd-prompt"># Run your tunnel connector command (Copy from your Cloudflare dashboard):</span>
+sudo cloudflared service install &lt;YOUR_TUNNEL_TOKEN&gt;</code></pre>
+                    </div>
+
+                    <h3>Configure Public Hostname Routes in Cloudflare Dashboard:</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Subdomain / Hostname</th>
+                                <th>Domain</th>
+                                <th>Type / Service</th>
+                                <th>URL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>@</code> (or <code>www</code>)</td>
+                                <td>ecobank.my.id</td>
+                                <td>HTTP</td>
+                                <td><code>http://localhost:8001</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>ws</code> (WebSockets)</td>
+                                <td>ecobank.my.id</td>
+                                <td>HTTP</td>
+                                <td><code>http://localhost:8080</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- OPTION B: PORT FORWARDING -->
+                <div id="tab-cf-direct" class="tab-content">
+                    <h3>Step-by-Step Direct DNS Setup:</h3>
+                    <ol style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+                        <li>In your Wi-Fi Router Settings, forward Public Port <code>80</code> to <code>192.168.1.10:8001</code> and Port <code>443</code> to <code>192.168.1.10:8001</code>. Also forward Port <code>8080</code> for WebSockets.</li>
+                        <li>Find your router's Public IP address (e.g. by checking <code>curl ifconfig.me</code>).</li>
+                        <li>In Cloudflare DNS Management, create an <strong>A Record</strong>:
+                            <ul>
+                                <li><strong>Type:</strong> A</li>
+                                <li><strong>Name:</strong> <code>@</code> (ecobank.my.id)</li>
+                                <li><strong>IPv4 Address:</strong> <code>&lt;YOUR_ROUTER_PUBLIC_IP&gt;</code></li>
+                                <li><strong>Proxy Status:</strong> Proxied (Orange Cloud)</li>
+                            </ul>
+                        </li>
+                        <li>Under <strong>SSL/TLS Settings</strong>, set Encryption mode to <strong>Full</strong> or <strong>Flexible</strong>.</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 6: Reverb WebSockets -->
+        <section class="step-section" id="step6">
+            <div class="section-header">
+                <div class="step-tag">6</div>
+                <h2>Verifying Laravel Reverb WebSockets</h2>
+            </div>
+            <p class="section-description">Verify that real-time notifications and WebSocket connections are operating properly.</p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Check Supervisord logs inside container to verify Reverb is running</span>
+docker exec -it banksampah-app supervisorctl status
+
+<span class="cmd-comment"># Expected Output:</span>
+<span class="cmd-string">nginx                            RUNNING   pid 12, uptime 0:05:00</span>
+<span class="cmd-string">php-fpm                          RUNNING   pid 13, uptime 0:05:00</span>
+<span class="cmd-string">laravel-queue                    RUNNING   pid 14, uptime 0:05:00</span>
+<span class="cmd-string">laravel-reverb                   RUNNING   pid 15, uptime 0:05:00</span></code></pre>
+            </div>
+        </section>
+
+        <!-- Maintenance & Backups -->
+        <section class="step-section" id="maintenance">
+            <div class="section-header">
+                <div class="step-tag">💾</div>
+                <h2>Automated SQLite Database Backups</h2>
+            </div>
+            <p class="section-description">Since your database uses SQLite, automated daily file backups ensure zero data loss.</p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Create backup script directory</span>
+mkdir -p /home/azuranyan/scripts
+nano /home/azuranyan/scripts/backup_db.sh</code></pre>
+            </div>
+
+            <p>Paste the following script inside <code>backup_db.sh</code>:</p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">/home/azuranyan/scripts/backup_db.sh</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>#!/bin/bash
+BACKUP_DIR="/home/azuranyan/backups/sqlite"
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+mkdir -p "$BACKUP_DIR"
+
+# Copy SQLite database file safely
+cp /home/azuranyan/hosted_project/database/database.sqlite "$BACKUP_DIR/ecobank_$DATE.sqlite"
+
+# Delete backups older than 30 days
+find "$BACKUP_DIR" -type f -name "*.sqlite" -mtime +30 -delete
+
+echo "Backup created: ecobank_$DATE.sqlite"</code></pre>
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-filename">Ubuntu Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="cmd-prompt"># Make script executable</span>
+chmod +x /home/azuranyan/scripts/backup_db.sh
+
+<span class="cmd-prompt"># Add daily Cron job at 02:00 AM</span>
+(crontab -l 2>/dev/null; echo "0 2 * * * /home/azuranyan/scripts/backup_db.sh >/dev/null 2>&1") | crontab -</code></pre>
+            </div>
+        </section>
+
+        <!-- Interactive Launch Checklist -->
+        <section class="step-section" id="checklist">
+            <div class="section-header">
+                <div class="step-tag">✅</div>
+                <h2>Deployment Completion Checklist</h2>
+            </div>
+            <p class="section-description">Tick off each step as you complete it during deployment:</p>
+
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk1" onchange="updateProgress()">
+                    <label for="chk1" class="checklist-text">SSH into Ubuntu Server (<code>ssh azuranyan@192.168.1.10</code>) and install Docker + UFW.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk2" onchange="updateProgress()">
+                    <label for="chk2" class="checklist-text">Create folder <code>/home/azuranyan/hosted_project</code> and transfer application code.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk3" onchange="updateProgress()">
+                    <label for="chk3" class="checklist-text">Create production <code>.env</code> file with <code>APP_URL=https://ecobank.my.id</code> and SQLite config.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk4" onchange="updateProgress()">
+                    <label for="chk4" class="checklist-text">Run <code>docker compose up -d --build</code> and check container health.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk5" onchange="updateProgress()">
+                    <label for="chk5" class="checklist-text">Execute migrations: <code>docker exec -it banksampah-app php artisan migrate --force</code>.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk6" onchange="updateProgress()">
+                    <label for="chk6" class="checklist-text">Setup Cloudflare DNS / Cloudflare Tunnel routing to <code>ecobank.my.id</code>.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk7" onchange="updateProgress()">
+                    <label for="chk7" class="checklist-text">Verify web application access over HTTPS in browser.</label>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="chk8" onchange="updateProgress()">
+                    <label for="chk8" class="checklist-text">Enable daily SQLite backup cron job.</label>
+                </li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>EcoBank App Production Deployment Guide &bull; Generated for <strong>azuranyan@192.168.1.10</strong> &bull; Domain: <strong>ecobank.my.id</strong></p>
+        </footer>
+
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Command copied to clipboard!</div>
+
+    <!-- JavaScript -->
+    <script>
+        // Copy Code Snippet
+        function copyCode(button) {
+            const container = button.closest('.code-container');
+            const code = container.querySelector('pre').innerText;
+            
+            // Clean command prompt symbols before copying
+            const cleanCode = code.replace(/^# .*$/gm, '')
+                                  .replace(/^<span class="cmd-prompt"># .*<\/span>/gm, '')
+                                  .replace(/^\$ /gm, '')
+                                  .trim();
+
+            navigator.clipboard.writeText(cleanCode).then(() => {
+                showToast('Copied to clipboard!');
+                button.innerText = 'Copied!';
+                button.style.background = 'var(--primary)';
+                button.style.color = '#000';
+                setTimeout(() => {
+                    button.innerText = 'Copy';
+                    button.style.background = '';
+                    button.style.color = '';
+                }, 2000);
+            });
+        }
+
+        // Show Toast Notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        // Tab Switching
+        function switchTab(event, tabId) {
+            const container = event.target.closest('.tab-container');
+            container.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            container.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            container.querySelector(`#${tabId}`).classList.add('active');
+        }
+
+        // Active Navigation Highlight on Scroll
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('section, header');
+            const navLinks = document.querySelectorAll('.nav-item a');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${currentSection}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Checklist State Persistence
+        function updateProgress() {
+            const checkboxes = document.querySelectorAll('.checklist input[type="checkbox"]');
+            checkboxes.forEach((chk, idx) => {
+                localStorage.setItem(`ecobank_chk_${idx}`, chk.checked);
+            });
+        }
+
+        // Restore Checklist State
+        window.addEventListener('DOMContentLoaded', () => {
+            const checkboxes = document.querySelectorAll('.checklist input[type="checkbox"]');
+            checkboxes.forEach((chk, idx) => {
+                const saved = localStorage.getItem(`ecobank_chk_${idx}`);
+                if (saved === 'true') chk.checked = true;
+            });
+        });
+    </script>
+</body>
+</html>

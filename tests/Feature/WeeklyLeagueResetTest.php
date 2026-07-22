@@ -64,8 +64,9 @@ class WeeklyLeagueResetTest extends TestCase
 
         // Setor 5.0 kg of Plastik (30 points/kg = 150 points)
         $response = $this->actingAs($this->operator)->post("/operator/setor/{$student->id}", [
-            'waste_category_id' => $this->category->id,
-            'weight' => 5.00,
+            'items' => [
+                ['waste_category_id' => $this->category->id, 'weight' => 5.00],
+            ],
         ]);
 
         $response->assertStatus(302);

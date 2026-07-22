@@ -26,10 +26,35 @@
             </form>
         </div>
     </div>
+    {{-- Class Stats --}}
+    <div class="operator-stats-grid" style="margin-top:var(--s-20);">
+        <div class="stat-item-box">
+            <div class="stat-item-icon stat-icon-teal"><i class="bi bi-recycle"></i></div>
+            <div class="stat-item-label">Total Sampah Kelas</div>
+            <div class="stat-item-value">{{ number_format($classTotalWeight, 1, ',', '.') }} <span style="font-size:14px;">kg</span></div>
+        </div>
+        <div class="stat-item-box">
+            <div class="stat-item-icon stat-icon-green"><i class="bi bi-wallet2"></i></div>
+            <div class="stat-item-label">Total Tabungan</div>
+            <div class="stat-item-value" style="font-size:15px;">Rp {{ number_format($classTotalBalance, 0, ',', '.') }}</div>
+        </div>
+        <div class="stat-item-box">
+            <div class="stat-item-icon stat-icon-amber"><i class="bi bi-people"></i></div>
+            <div class="stat-item-label">Jumlah Siswa</div>
+            <div class="stat-item-value">{{ $students->count() }}</div>
+        </div>
+        <div class="stat-item-box">
+            <div class="stat-item-icon stat-icon-blue"><i class="bi bi-calculator"></i></div>
+            <div class="stat-item-label">Rata-rata Saldo</div>
+            <div class="stat-item-value" style="font-size:15px;">
+                Rp {{ number_format($students->count() > 0 ? ($classTotalBalance / $students->count()) : 0, 0, ',', '.') }}
+            </div>
+        </div>
+    </div>
 
     {{-- ===== FILTER PANEL ===== --}}
     <form method="GET" action="{{ route('walikelas.dashboard') }}" id="filter-form">
-        <div class="card" style="padding:var(--s-16);margin-bottom:var(--s-20);">
+        <div class="card" style="padding:var(--s-16);margin-bottom:var(--s-20);margin-top:var(--s-20);">
             <div style="font-size:12.5px;font-weight:700;color:var(--on-surface-variant);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--s-12);">
                 <i class="bi bi-funnel" style="margin-right:4px;color:var(--primary);"></i> Filter Data Kontribusi
             </div>
@@ -77,31 +102,6 @@
         </div>
     </form>
 
-    {{-- Class Stats --}}
-    <div class="operator-stats-grid">
-        <div class="stat-item-box">
-            <div class="stat-item-icon stat-icon-teal"><i class="bi bi-recycle"></i></div>
-            <div class="stat-item-label">Total Sampah Kelas</div>
-            <div class="stat-item-value">{{ number_format($classTotalWeight, 1, ',', '.') }} <span style="font-size:14px;">kg</span></div>
-        </div>
-        <div class="stat-item-box">
-            <div class="stat-item-icon stat-icon-green"><i class="bi bi-wallet2"></i></div>
-            <div class="stat-item-label">Total Tabungan</div>
-            <div class="stat-item-value" style="font-size:15px;">Rp {{ number_format($classTotalBalance, 0, ',', '.') }}</div>
-        </div>
-        <div class="stat-item-box">
-            <div class="stat-item-icon stat-icon-amber"><i class="bi bi-people"></i></div>
-            <div class="stat-item-label">Jumlah Siswa</div>
-            <div class="stat-item-value">{{ $students->count() }}</div>
-        </div>
-        <div class="stat-item-box">
-            <div class="stat-item-icon stat-icon-blue"><i class="bi bi-calculator"></i></div>
-            <div class="stat-item-label">Rata-rata Saldo</div>
-            <div class="stat-item-value" style="font-size:15px;">
-                Rp {{ number_format($students->count() > 0 ? ($classTotalBalance / $students->count()) : 0, 0, ',', '.') }}
-            </div>
-        </div>
-    </div>
 
     {{-- Student Leaderboard for Class --}}
     <div class="card">

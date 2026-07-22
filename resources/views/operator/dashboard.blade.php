@@ -50,11 +50,7 @@
         {{-- Left Column: Quick Actions & Search Input --}}
         <div class="dashboard-column-left">
             {{-- Quick Actions --}}
-            <div class="action-grid">
-                <a href="{{ route('operator.students.register') }}" class="action-card">
-                    <div class="action-icon"><i class="bi bi-person-plus"></i></div>
-                    <span class="action-label">Registrasi Siswa</span>
-                </a>
+            <div class="action-grid" style="grid-template-columns: 1fr;">
                 <a href="{{ route('operator.history') }}" class="action-card">
                     <div class="action-icon"><i class="bi bi-clock-history"></i></div>
                     <span class="action-label">Riwayat Log</span>
