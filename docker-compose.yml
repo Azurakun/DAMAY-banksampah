@@ -37,7 +37,7 @@ services:
       - "http"
       - "app:80"
       - "--url=${NGROK_DOMAIN}"
-      - "--host-header=rewrite"
+      - "--host-header=${NGROK_DOMAIN}"
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
     ports:
