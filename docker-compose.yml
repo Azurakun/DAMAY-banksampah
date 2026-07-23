@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -28,7 +26,21 @@ services:
       - REVERB_SCHEME=http
     volumes:
       - ./database:/var/www/html/database
+      - ./.env:/var/www/html/.env
       - app-storage:/var/www/html/storage/app
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: banksampah-ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "app:80"
+      - "--url=${NGROK_DOMAIN}"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"
 
 volumes:
   app-storage:

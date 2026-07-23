@@ -1064,8 +1064,9 @@ docker exec -it banksampah-app php artisan view:cache</code></pre>
 
             <div class="tab-container">
                 <div class="tab-buttons">
-                    <button class="tab-btn active" onclick="switchTab(event, 'tab-cf-tunnel')">Option A: Cloudflare Tunnel (Recommended for LAN 192.168.1.10)</button>
+                    <button class="tab-btn active" onclick="switchTab(event, 'tab-cf-tunnel')">Option A: Cloudflare Tunnel (Recommended for Production)</button>
                     <button class="tab-btn" onclick="switchTab(event, 'tab-cf-direct')">Option B: Direct Public IP & Router Port Forwarding</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'tab-ngrok')">Option C: Ngrok HTTP Tunnel (Instant Testing)</button>
                 </div>
 
                 <!-- OPTION A: CLOUDFLARE TUNNEL -->
@@ -1073,7 +1074,7 @@ docker exec -it banksampah-app php artisan view:cache</code></pre>
                     <div class="callout callout-success">
                         <div class="callout-icon">🚀</div>
                         <div>
-                            <strong>Why Cloudflare Tunnel?</strong> It securely connects your local server (192.168.1.10) directly to Cloudflare edge network with <strong>zero open ports</strong> on your router and automatic SSL certificates!
+                            <strong>Why Cloudflare Tunnel?</strong> It securely connects your local server directly to Cloudflare edge network with <strong>zero open ports</strong> on your router and automatic SSL certificates!
                         </div>
                     </div>
 
@@ -1141,6 +1142,58 @@ sudo cloudflared service install &lt;YOUR_TUNNEL_TOKEN&gt;</code></pre>
                         </li>
                         <li>Under <strong>SSL/TLS Settings</strong>, set Encryption mode to <strong>Full</strong> or <strong>Flexible</strong>.</li>
                     </ol>
+                </div>
+
+                <!-- OPTION C: NGROK HTTP TUNNEL -->
+                <div id="tab-ngrok" class="tab-content">
+                    <div class="callout callout-tip">
+                        <div class="callout-icon">⚡</div>
+                        <div>
+                            <strong>Why Ngrok?</strong> Perfect for quick testing or temporary demos without requiring a domain name or Cloudflare account. Ngrok creates an instant secure HTTPS URL pointing directly to your local port.
+                        </div>
+                    </div>
+
+                    <h3>Step-by-Step Ngrok HTTP Setup:</h3>
+                    <ol style="margin-left: 1.5rem; margin-bottom: 1.5rem;">
+                        <li>Sign up / log in to your <a href="https://dashboard.ngrok.com" target="_blank" style="color: var(--primary);">Ngrok Dashboard</a> and copy your <strong>Authtoken</strong>.</li>
+                        <li>Install Ngrok on your Ubuntu server:</li>
+                    </ol>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-filename">Ubuntu Terminal</span>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                        <pre><code><span class="cmd-prompt"># Add Ngrok GPG key & official APT repository</span>
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+
+<span class="cmd-prompt"># Update & Install Ngrok</span>
+sudo apt update && sudo apt install ngrok -y
+
+<span class="cmd-prompt"># Authenticate Ngrok with your account token</span>
+ngrok config add-authtoken &lt;YOUR_NGROK_AUTHTOKEN&gt;</code></pre>
+                    </div>
+
+                    <h3>Launch Ngrok HTTP Tunnel:</h3>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-filename">Ubuntu Terminal</span>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                        <pre><code><span class="cmd-prompt"># Expose Docker Web App (Port 8001) to an HTTPS public URL</span>
+ngrok http 8001
+
+<span class="cmd-prompt"># (Optional) If using a custom Ngrok static domain:</span>
+ngrok http --url=your-domain.ngrok-free.app 8001</code></pre>
+                    </div>
+
+                    <div class="callout callout-warning" style="margin-top: 1rem;">
+                        <div class="callout-icon">⚠️</div>
+                        <div>
+                            <strong>Important for Laravel APP_URL:</strong> When using ngrok, update your <code>.env</code> file or Docker container environment variable <code>APP_URL</code> to match your generated ngrok HTTPS link (e.g. <code>https://xxxx.ngrok-free.app</code>).
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
