@@ -12,7 +12,7 @@ services:
       - APP_NAME=EcoBank
       - APP_ENV=production
       - APP_DEBUG=false
-      - APP_URL=https://ecobank.my.id
+      - APP_URL=${APP_URL}
       - DB_CONNECTION=sqlite
       - DB_DATABASE=/var/www/html/database/database.sqlite
       - SESSION_DRIVER=database
@@ -37,6 +37,7 @@ services:
       - "http"
       - "app:80"
       - "--url=${NGROK_DOMAIN}"
+      - "--host-header=rewrite"
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
     ports:
